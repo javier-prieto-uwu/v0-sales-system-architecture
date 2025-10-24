@@ -87,3 +87,177 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* === Estilos Generador de Etiquetas === */
+@layer components {
+  .etiquetas-container {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .etiquetas-editor {
+    background: var(--color-card);
+    color: var(--color-card-foreground);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+  }
+
+  .etiquetas-title {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .etiquetas-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--color-border);
+    font-size: 0.9rem;
+  }
+  .etiquetas-table th,
+  .etiquetas-table td {
+    border: 1px solid var(--color-border);
+    padding: 0.5rem;
+    vertical-align: middle;
+  }
+  .etiquetas-table thead th {
+    background: var(--color-secondary);
+    color: var(--color-secondary-foreground);
+    text-align: left;
+  }
+
+  .etiquetas-input {
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.5rem;
+    background: var(--color-input);
+    color: var(--color-foreground);
+  }
+
+  .btn-primary,
+  .btn-success {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.45rem 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn-primary {
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+  .btn-success {
+    background: var(--color-accent);
+    color: var(--color-accent-foreground);
+  }
+
+  .width-control {
+    margin: 0.75rem 0;
+  }
+  .width-control label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+  }
+  .width-slider {
+    width: 100%;
+  }
+
+  .print-container {
+    background: var(--color-card);
+    color: var(--color-card-foreground);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    overflow: auto;
+  }
+
+  /* Tamaño de hoja A4 con márgenes de 10mm */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    box-sizing: border-box;
+    padding: 10mm;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4mm; /* coincide con la constante gap del componente */
+  }
+
+  .label {
+    box-sizing: border-box;
+    background: white;
+    border: 1px dashed var(--color-border);
+    border-radius: 4px;
+    padding: 2mm;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    align-items: center;
+    gap: 1mm;
+  }
+
+  .label-description {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+  .label-description .part-number {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .label-last-four {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .label-barcode {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 20mm; /* coherente con la altura del código de barras */
+  }
+  .label-barcode svg {
+    width: 100%;
+    height: auto;
+  }
+}
+
+/* Estilos de impresión */
+@media print {
+  .etiquetas-container {
+    display: block;
+    padding: 0;
+  }
+  .etiquetas-editor {
+    display: none;
+  }
+  .print-container {
+    border: none;
+    padding: 0;
+  }
+  .page {
+    box-shadow: none;
+    border: none;
+    page-break-after: always;
+  }
+}

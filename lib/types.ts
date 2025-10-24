@@ -45,6 +45,16 @@ export interface Vendedor {
   tienda: Tienda
 }
 
+export interface Cliente {
+  id: string
+  nombre: string
+  telefono?: string
+  email?: string
+  direccion?: string
+  created_at?: string
+  updated_at?: string
+}
+
 export interface ItemCarrito {
   id: string
   tipo: "producto" | "equipo"
@@ -59,19 +69,19 @@ export interface ItemCarrito {
 export interface Venta {
   id: string
   fecha: string
-  notaVenta: string
+  nota_venta: string
   factura: string
   cliente: string
   vendedor: string
   tienda: Tienda
-  metodoPago: MetodoPago
-  tipoTarjeta: TipoTarjeta
-  items: ItemCarrito[]
-  costoTotal: number
-  ventaTotal: number
-  utilidadTotal: number
-  equiposVendidos: number
-  refaccionesVendidas: number
+  metodo_pago: MetodoPago
+  tipo_tarjeta: TipoTarjeta
+  items?: ItemCarrito[]
+  costo_total: number
+  venta_total: number
+  utilidad_total: number
+  equipos_vendidos: number
+  refacciones_vendidas: number
 }
 
 export interface Etiqueta {

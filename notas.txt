@@ -1,0 +1,45 @@
+📝 NOTAS IMPORTANTES DEL PROYECTO POS MIRAGE
+==============================================
+
+🚫 REGLA FUNDAMENTAL: NO USAR ARCHIVOS SQL
+------------------------------------------
+- NUNCA crear archivos .sql en el proyecto
+- TODO se maneja a través del MCP de Supabase
+- Los archivos SQL locales causan duplicación y confusión
+
+✅ GESTIÓN DE BASE DE DATOS
+---------------------------
+- Usar exclusivamente el MCP de Supabase para:
+  * Crear tablas (mcp_supabase-mcp_apply_migration)
+  * Ejecutar consultas (mcp_supabase-mcp_execute_sql)
+  * Listar tablas (mcp_supabase-mcp_list_tables)
+  * Generar tipos TypeScript (mcp_supabase-mcp_generate_typescript_types)
+
+📊 PROYECTO ACTUAL
+------------------
+- Proyecto Supabase: "INVENTARIO" (ID: invtoaqnuaxmsuvstysu)
+- Estado: ACTIVE_HEALTHY
+- Región: us-east-2
+
+🗃️ TABLAS EXISTENTES
+--------------------
+✅ clientes (id, nombre, telefono, email, direccion, created_at, updated_at)
+✅ vendedores (id, nombre, email, telefono, activo, created_at, updated_at, tienda)
+✅ refacciones (para inventario)
+✅ equipos (para inventario)
+✅ catalogo_modelos
+✅ catalogo_categorias
+
+⚠️ PENDIENTES
+--------------
+- Considerar eliminar campo 'direccion' de tabla clientes en Supabase
+  (ya fue removido del frontend)
+
+🔧 SI EL MCP NO FUNCIONA
+------------------------
+- Reportar inmediatamente el problema
+- NO crear archivos SQL como alternativa
+- Investigar la causa del fallo del MCP
+- Usar herramientas de Supabase Dashboard como último recurso
+
+📅 Última actualización: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")

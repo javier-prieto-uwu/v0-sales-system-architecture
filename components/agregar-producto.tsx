@@ -2,20 +2,28 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Categoria, Modelo, Tecnologia, Tienda } from "@/lib/types"
+import type { Tecnologia } from "@/lib/types"
+import { supabase } from "@/lib/supabaseClient"
 
 export function AgregarProducto() {
   const [tipoInventario, setTipoInventario] = useState<"normal" | "equipo">("normal")
   const [sku, setSku] = useState("")
   const [nombre, setNombre] = useState("")
-  const [categoria, setCategoria] = useState<Categoria>("Controles")
-  const [modelo, setModelo] = useState<Modelo>("LIFE12+")
+  // Restaurar estados que se usan en el formulario
+  const [categoriasList, setCategoriasList] = useState<string[]>([
+    "Controles",
+    "Misceláneos",
+    "Motores de Evaporador",
+  ])
+  const [categoria, setCategoria] = useState<string>("Controles")
+  const [newCategoria, setNewCategoria] = useState<string>("")
+  const [modelo, setModelo] = useState<string>("LIFE12+")
   const [tecnologia, setTecnologia] = useState<Tecnologia>("Convencional")
   const [btu, setBtu] = useState("")
   const [voltaje, setVoltaje] = useState("")
@@ -24,7 +32,35 @@ export function AgregarProducto() {
   const [costo, setCosto] = useState("")
   const [precio, setPrecio] = useState("")
   const [utilidad, setUtilidad] = useState("")
-  const [ubicacionPrincipal, setUbicacionPrincipal] = useState<Tienda>("Cancún")
+  const [modelosList, setModelosList] = useState<string[]>(["LIFE12+", "NEX 2023", "XLIFE"])
+  const [newModelo, setNewModelo] = useState<string>("")
+  // Cargar categorías desde catálogo (public.catalogo_categorias)
+  useEffect(() => {
+    const loadCategorias = async () => {
+      const { data, error } = await supabase.from("catalogo_categorias").select("nombre")
+      if (error) {
+        console.error("Error cargando categorías:", error.message)
+        return
+      }
+      const fetched = (data || []).map((d: any) => d.nombre).filter(Boolean)
+      setCategoriasList((prev: string[]) => Array.from(new Set([...prev, ...fetched])))
+    }
+    loadCategorias()
+  }, [])
+
+  // Cargar modelos desde catálogo (public.catalogo_modelos)
+  useEffect(() => {
+    const loadModelos = async () => {
+      const { data, error } = await supabase.from("catalogo_modelos").select("nombre")
+      if (error) {
+        console.error("Error cargando modelos:", error.message)
+        return
+      }
+      const fetched = (data || []).map((d: any) => d.nombre).filter(Boolean)
+      setModelosList((prev: string[]) => Array.from(new Set([...prev, ...fetched])))
+    }
+    loadModelos()
+  }, [])
 
   const calcularUtilidad = () => {
     const costoNum = Number.parseFloat(costo) || 0
@@ -33,25 +69,52 @@ export function AgregarProducto() {
     setUtilidad(utilidadCalculada.toFixed(2))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("[v0] Producto agregado:", {
-      tipo: tipoInventario,
-      sku,
-      nombre,
-      categoria: tipoInventario === "normal" ? categoria : undefined,
-      modelo: tipoInventario === "equipo" ? modelo : undefined,
-      tecnologia: tipoInventario === "equipo" ? tecnologia : undefined,
-      btu: tipoInventario === "equipo" ? btu : undefined,
-      voltaje: tipoInventario === "equipo" ? voltaje : undefined,
-      cantidadCancun,
-      cantidadPlaya,
-      costo,
-      precio,
-      utilidad,
-      ubicacionPrincipal,
-    })
-    // Reset form
+
+    if (tipoInventario === "equipo") {
+      const payloadEquipos = {
+        sku,
+        nombre,
+        modelo,
+        tecnologia,
+        btu: Number.parseInt(btu) || null,
+        voltaje: Number.parseInt(voltaje) || null,
+        costo: Number.parseFloat(costo) || 0,
+        precio: Number.parseFloat(precio) || 0,
+        cantidad_cancun: Number.parseInt(cantidadCancun) || 0,
+        cantidad_playa: Number.parseInt(cantidadPlaya) || 0,
+      }
+
+      const { error } = await supabase.from("equipos").insert(payloadEquipos)
+      if (error) {
+        console.error("Error al guardar equipo:", error.message)
+        alert(`Error al guardar equipo: ${error.message}`)
+        return
+      }
+      alert("Equipo agregado a la tabla 'equipos' (Supabase)")
+    } else {
+      // Inventario normal: refacciones
+      const payloadRefacciones = {
+        sku,
+        nombre,
+        categoria,
+        costo: Number.parseFloat(costo) || 0,
+        precio: Number.parseFloat(precio) || 0,
+        cantidad_cancun: Number.parseInt(cantidadCancun) || 0,
+        cantidad_playa: Number.parseInt(cantidadPlaya) || 0,
+      }
+
+      const { error } = await supabase.from("refacciones").insert(payloadRefacciones)
+      if (error) {
+        console.error("Error al guardar refacción:", error.message)
+        alert(`Error al guardar refacción: ${error.message}`)
+        return
+      }
+      alert("Producto agregado a la tabla 'refacciones' (Supabase)")
+    }
+
+    // Reset del formulario
     setSku("")
     setNombre("")
     setCantidadCancun("")
@@ -61,6 +124,7 @@ export function AgregarProducto() {
     setUtilidad("")
     setBtu("")
     setVoltaje("")
+    setCategoria("Controles")
   }
 
   return (
@@ -107,7 +171,7 @@ export function AgregarProducto() {
             <CardTitle className="text-black">Información del Producto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid lg:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="sku" className="text-black">
                   SKU
@@ -142,48 +206,119 @@ export function AgregarProducto() {
                 <Label htmlFor="categoria" className="text-black">
                   Categoría
                 </Label>
-                <Select value={categoria} onValueChange={(value) => setCategoria(value as Categoria)}>
+                <Select value={categoria} onValueChange={(value) => setCategoria(value)}>
                   <SelectTrigger className="bg-white border-gray-300 text-black">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-200">
-                    <SelectItem value="Controles" className="text-black">
-                      Controles
-                    </SelectItem>
-                    <SelectItem value="Misceláneos" className="text-black">
-                      Misceláneos
-                    </SelectItem>
-                    <SelectItem value="Motores de Evaporador" className="text-black">
-                      Motores de Evaporador
-                    </SelectItem>
+                    {categoriasList.map((cat) => (
+                      <SelectItem key={cat} value={cat} className="text-black">
+                        {cat}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+
+                <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                  <Input
+                    id="nueva-categoria"
+                    value={newCategoria}
+                    onChange={(e) => setNewCategoria(e.target.value)}
+                    placeholder="Nueva categoría"
+                    className="bg-white border-gray-300 text-black placeholder:text-gray-400"
+                  />
+                  <Button
+                    type="button"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={async () => {
+                      const nombre = newCategoria.trim()
+                      if (!nombre) return
+                      const existe = categoriasList.some(
+                        (c) => c.toLowerCase() === nombre.toLowerCase()
+                      )
+                      try {
+                        const { error } = await supabase
+                          .from("catalogo_categorias")
+                          .upsert({ nombre }, { onConflict: "nombre" })
+                        if (error) {
+                          console.error("Error registrando categoría:", error.message)
+                          alert(`Error registrando categoría: ${error.message}`)
+                          return
+                        }
+                        if (!existe) {
+                          setCategoriasList((prev) => [...prev, nombre])
+                        }
+                        setCategoria(nombre)
+                        setNewCategoria("")
+                      } catch (err: any) {
+                        console.error("Error registrando categoría:", err?.message || String(err))
+                        alert(`Error registrando categoría: ${err?.message || String(err)}`)
+                      }
+                    }}
+                  >
+                    Agregar
+                  </Button>
+                </div>
               </div>
             )}
 
             {tipoInventario === "equipo" && (
               <>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid lg:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="modelo" className="text-black">
                       Modelo
                     </Label>
-                    <Select value={modelo} onValueChange={(value) => setModelo(value as Modelo)}>
+                    <Select value={modelo} onValueChange={(value) => setModelo(value)}>
                       <SelectTrigger className="bg-white border-gray-300 text-black">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-gray-200">
-                        <SelectItem value="LIFE12+" className="text-black">
-                          LIFE12+
-                        </SelectItem>
-                        <SelectItem value="NEX 2023" className="text-black">
-                          NEX 2023
-                        </SelectItem>
-                        <SelectItem value="XLIFE" className="text-black">
-                          XLIFE
-                        </SelectItem>
+                        {modelosList.map((mod) => (
+                          <SelectItem key={mod} value={mod} className="text-black">
+                            {mod}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                      <Input
+                        id="nuevo-modelo"
+                        value={newModelo}
+                        onChange={(e) => setNewModelo(e.target.value)}
+                        placeholder="Nuevo modelo"
+                        className="bg-white border-gray-300 text-black placeholder:text-gray-400"
+                      />
+                      <Button
+                        type="button"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={async () => {
+                          const nombre = newModelo.trim()
+                          if (!nombre) return
+                          const existe = modelosList.some((m) => m.toLowerCase() === nombre.toLowerCase())
+                          try {
+                            const { error } = await supabase
+                              .from("catalogo_modelos")
+                              .upsert({ nombre }, { onConflict: "nombre" })
+                            if (error) {
+                              console.error("Error registrando modelo:", error.message)
+                              alert(`Error registrando modelo: ${error.message}`)
+                              return
+                            }
+                            if (!existe) {
+                              setModelosList((prev) => [...prev, nombre])
+                            }
+                            setModelo(nombre)
+                            setNewModelo("")
+                          } catch (err: any) {
+                            console.error("Error registrando modelo:", err?.message || String(err))
+                            alert(`Error registrando modelo: ${err?.message || String(err)}`)
+                          }
+                        }}
+                      >
+                        Agregar
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -206,7 +341,7 @@ export function AgregarProducto() {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid lg:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="btu" className="text-black">
                       BTU
@@ -324,24 +459,7 @@ export function AgregarProducto() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="ubicacion" className="text-black">
-                Ubicación Principal
-              </Label>
-              <Select value={ubicacionPrincipal} onValueChange={(value) => setUbicacionPrincipal(value as Tienda)}>
-                <SelectTrigger className="bg-white border-gray-300 text-black">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white border-gray-200">
-                  <SelectItem value="Cancún" className="text-black">
-                    Cancún
-                  </SelectItem>
-                  <SelectItem value="Playa del Carmen" className="text-black">
-                    Playa del Carmen
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
 
             <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
               Agregar Producto
