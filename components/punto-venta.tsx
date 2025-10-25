@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { vendedores, productos, equipos, inventarioProductos, inventarioEquipos } from "@/lib/data"
 import type { Tienda, MetodoPago, TipoTarjeta, ItemCarrito, Cliente } from "@/lib/types"
-import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera, TestTube, Circle } from "lucide-react"
+import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera, Circle } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import { formatCurrency } from "@/lib/utils"
 import { useBarcodeScanner } from "@/lib/use-barcode-scanner"
@@ -71,17 +71,10 @@ export function PuntoVenta() {
     setSkuInput(codigo);
     
     // Mostrar feedback inmediato
-    setSuccessMessage(`Código escaneado: ${codigo}`);
+    setSuccessMessage(`Código escaneado: ${codigo} - Presiona "Agregar" para continuar`);
     
-    // Intentar agregar automáticamente al carrito después de un breve delay
-    setTimeout(async () => {
-      try {
-        await agregarAlCarrito();
-      } catch (error) {
-        console.error('Error al agregar automáticamente:', error);
-        setErrorMessage("Error al agregar el producto automáticamente. Intenta manualmente.");
-      }
-    }, 300);
+    // Pausar el escáner después de detectar un código
+    stopScanning();
   })
 
   const vendedoresFiltrados = vendedoresList.filter((v) => v.tienda === tiendaVenta)
@@ -868,26 +861,6 @@ export function PuntoVenta() {
                   className="bg-white border-gray-300 text-black placeholder:text-gray-400"
                 />
                 <Button
-                  onClick={async () => {
-                    console.log('Botón de prueba de cámara clickeado');
-                    const { BarcodeScanner } = await import('@/lib/barcode-scanner');
-                    const scanner = new BarcodeScanner({
-                      onScanSuccess: () => {},
-                      onError: () => {},
-                      onStatusChange: () => {}
-                    });
-                    const resultado = await scanner.probarCamara();
-                    alert(resultado);
-                    console.log('Resultado de prueba:', resultado);
-                  }}
-                  variant="secondary"
-                  size="sm"
-                  className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border-yellow-300"
-                >
-                  <TestTube className="h-4 w-4 mr-1" />
-                  Probar
-                </Button>
-                <Button
                   onClick={() => {
                     console.log('Botón de cámara clickeado, isScanning:', isScanning);
                     if (isScanning) {
@@ -939,29 +912,10 @@ export function PuntoVenta() {
             </div>
           </div>
           
-          {/* Indicador de cámara activa */}
-          {isScanning && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <p className="text-sm font-medium text-green-600">
-                  Cámara activa - Escaneo continuo
-                </p>
-              </div>
-              <p className="text-xs text-gray-600 text-center">
-                Apunta hacia el código de barras. Los códigos se agregarán automáticamente.
-              </p>
-              {deviceInfo.isAndroid && (
-                <p className="text-xs text-blue-600 text-center mt-2">
-                  Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
-                </p>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Elemento de video siempre presente */}
+      {/* Elemento de video para la cámara */}
       <video
         ref={videoRef}
         autoPlay
@@ -970,7 +924,11 @@ export function PuntoVenta() {
         webkit-playsinline="true"
         controls={false}
         preload="metadata"
-        className="hidden"
+        className={`w-full max-w-md mx-auto rounded-lg border-2 ${
+          isScanning 
+            ? "block border-green-500 bg-black" 
+            : "hidden"
+        }`}
         style={{ aspectRatio: '4/3' }}
       />
 
