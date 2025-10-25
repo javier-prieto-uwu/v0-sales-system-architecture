@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { vendedores, productos, equipos, inventarioProductos, inventarioEquipos } from "@/lib/data"
 import type { Tienda, MetodoPago, TipoTarjeta, ItemCarrito, Cliente } from "@/lib/types"
-import { Trash2, ShoppingCart, Plus, Users, ChevronDown } from "lucide-react"
+import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import { formatCurrency } from "@/lib/utils"
+import { useBarcodeScanner } from "@/lib/use-barcode-scanner"
 
 export function PuntoVenta() {
   const [tiendaVenta, setTiendaVenta] = useState<Tienda>("Cancún")
@@ -48,6 +49,24 @@ export function PuntoVenta() {
   
   // Estado para prevenir ventas duplicadas
   const [procesandoVenta, setProcesandoVenta] = useState(false)
+  
+  // Hook para escáner de código de barras
+  const {
+    videoRef,
+    isScanning,
+    error,
+    deviceInfo,
+    startScanning,
+    stopScanning,
+    clearError
+  } = useBarcodeScanner((codigo: string) => {
+    // Cuando se escanea un código, agregarlo al SKU input
+    setSkuInput(codigo)
+    // Intentar agregar automáticamente al carrito
+    setTimeout(() => {
+      agregarAlCarrito()
+    }, 100)
+  })
 
   const vendedoresFiltrados = vendedoresList.filter((v) => v.activo && v.tienda === tiendaVenta)
 
@@ -354,6 +373,8 @@ export function PuntoVenta() {
     }
     setLoading(false)
   }
+
+
 
   const buscarProducto = async (sku: string) => {
     try {
@@ -818,6 +839,19 @@ export function PuntoVenta() {
                     {errorMessage}
                   </div>
                 )}
+                {error && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {error}
+                    <Button
+                      onClick={clearError}
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2 h-auto p-1 text-red-600 hover:text-red-800"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                )}
                 {successMessage && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
                     {successMessage}
@@ -845,19 +879,58 @@ export function PuntoVenta() {
               <Label htmlFor="sku" className="text-black">
                 SKU / Código de Barras
               </Label>
-              <Input
-                id="sku"
-                value={skuInput}
-                onChange={(e) => setSkuInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    agregarAlCarrito()
-                  }
-                }}
-                placeholder="Escanear o escribir SKU"
-                className="bg-white border-gray-300 text-black placeholder:text-gray-400"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="sku"
+                  value={skuInput}
+                  onChange={(e) => setSkuInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      agregarAlCarrito()
+                    }
+                  }}
+                  placeholder="Escanear o escribir SKU"
+                  className="bg-white border-gray-300 text-black placeholder:text-gray-400"
+                />
+                <Button
+                  onClick={async () => {
+                    console.log('🧪 Botón de prueba de cámara clickeado');
+                    const { BarcodeScanner } = await import('@/lib/barcode-scanner');
+                    const scanner = new BarcodeScanner({
+                      onScanSuccess: () => {},
+                      onError: () => {},
+                      onStatusChange: () => {}
+                    });
+                    const resultado = await scanner.probarCamara();
+                    alert(resultado);
+                    console.log('🧪 Resultado de prueba:', resultado);
+                  }}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border-yellow-300"
+                >
+                  🧪 Probar
+                </Button>
+                <Button
+                  onClick={() => {
+                    console.log('🔘 Botón de cámara clickeado, isScanning:', isScanning);
+                    if (isScanning) {
+                      console.log('🛑 Llamando stopScanning');
+                      stopScanning();
+                    } else {
+                      console.log('🎥 Llamando startScanning');
+                      startScanning();
+                    }
+                  }}
+                  variant={isScanning ? "destructive" : "outline"}
+                  size="icon"
+                  className={isScanning ? "bg-red-600 hover:bg-red-700" : "border-gray-300 hover:bg-gray-50"}
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
+              </div>
+
             </div>
             <div className="w-24">
               <Label htmlFor="cantidad" className="text-black">
@@ -880,6 +953,60 @@ export function PuntoVenta() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Elemento de video siempre presente */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        webkit-playsinline="true"
+        controls={false}
+        preload="metadata"
+        className="hidden"
+        style={{ aspectRatio: '4/3' }}
+      />
+
+      {/* Contenedor del escáner de código de barras */}
+      {isScanning && (
+        <Card className="bg-white border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-black flex items-center gap-2">
+              <Camera className="h-5 w-5" />
+              Escáner de Código de Barras
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative">
+              <div className="w-full max-w-md mx-auto rounded-lg border border-gray-300 bg-black relative overflow-hidden" style={{ aspectRatio: '4/3' }}>
+                {/* Contenedor para mostrar el video */}
+                <div id="video-container" className="w-full h-full relative">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                    <div className="border-2 border-red-500 w-48 h-32 rounded-lg opacity-50"></div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-600 mb-2">
+                  Apunta la cámara hacia el código de barras
+                </p>
+                {deviceInfo.isAndroid && (
+                  <p className="text-xs text-blue-600 mb-2">
+                    📱 Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
+                  </p>
+                )}
+                <Button
+                  onClick={stopScanning}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Detener Escáner
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="bg-white border-gray-200">
         <CardHeader>
