@@ -73,8 +73,8 @@ export function PuntoVenta() {
     // Mostrar feedback inmediato
     setSuccessMessage(`Código escaneado: ${codigo} - Presiona "Agregar" para continuar`);
     
-    // Pausar el escáner después de detectar un código
-    stopScanning();
+    // NO pausar el escáner - mantener la cámara activa para escaneos continuos
+    // stopScanning(); // Comentado para mantener cámara activa
   })
 
   const vendedoresFiltrados = vendedoresList.filter((v) => v.tienda === tiendaVenta)
@@ -841,7 +841,8 @@ export function PuntoVenta() {
           <CardTitle className="text-black">Agregar Productos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          {/* Layout responsive: columna en móvil, fila en desktop */}
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <Label htmlFor="sku" className="text-black">
                 SKU / Código de Barras
@@ -858,7 +859,7 @@ export function PuntoVenta() {
                     }
                   }}
                   placeholder="Escanear o escribir SKU"
-                  className="bg-white border-gray-300 text-black placeholder:text-gray-400"
+                  className="bg-white border-gray-300 text-black placeholder:text-gray-400 text-base"
                 />
                 <Button
                   onClick={() => {
@@ -872,7 +873,7 @@ export function PuntoVenta() {
                     }
                   }}
                   variant={isScanning ? "destructive" : "outline"}
-                  className={`flex items-center gap-2 ${
+                  className={`flex items-center gap-1 px-3 py-2 min-w-[80px] ${
                     isScanning 
                       ? "bg-red-600 hover:bg-red-700 text-white" 
                       : "border-gray-300 hover:bg-gray-50"
@@ -883,54 +884,73 @@ export function PuntoVenta() {
                   {isScanning ? (
                     <>
                       <Circle className="h-3 w-3 fill-current animate-pulse" />
-                      <span className="text-sm">ACTIVA</span>
+                      <span className="text-xs sm:text-sm hidden sm:inline">ACTIVA</span>
                     </>
                   ) : (
-                    <span className="text-sm">Cámara</span>
+                    <span className="text-xs sm:text-sm hidden sm:inline">Cámara</span>
                   )}
                 </Button>
               </div>
-
             </div>
-            <div className="w-24">
-              <Label htmlFor="cantidad" className="text-black">
-                Cantidad
-              </Label>
-              <Input
-                id="cantidad"
-                type="number"
-                min="1"
-                value={cantidadInput}
-                onChange={(e) => setCantidadInput(e.target.value)}
-                className="bg-white border-gray-300 text-black"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={agregarAlCarrito} className="bg-blue-600 hover:bg-blue-700 text-white">
-                Agregar
-              </Button>
+            
+            {/* Cantidad y botón agregar en una fila en móvil */}
+            <div className="flex gap-2 sm:gap-4">
+              <div className="w-20 sm:w-24">
+                <Label htmlFor="cantidad" className="text-black">
+                  Cantidad
+                </Label>
+                <Input
+                  id="cantidad"
+                  type="number"
+                  min="1"
+                  value={cantidadInput}
+                  onChange={(e) => setCantidadInput(e.target.value)}
+                  className="bg-white border-gray-300 text-black text-base"
+                />
+              </div>
+              <div className="flex items-end flex-1 sm:flex-initial">
+                <Button 
+                  onClick={agregarAlCarrito} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto px-4 py-2"
+                >
+                  <span className="text-sm sm:text-base">Agregar</span>
+                </Button>
+              </div>
             </div>
           </div>
           
         </CardContent>
       </Card>
 
-      {/* Elemento de video para la cámara */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        webkit-playsinline="true"
-        controls={false}
-        preload="metadata"
-        className={`w-full max-w-md mx-auto rounded-lg border-2 ${
-          isScanning 
-            ? "block border-green-500 bg-black" 
-            : "hidden"
-        }`}
-        style={{ aspectRatio: '4/3' }}
-      />
+      {/* Elemento de video para la cámara - Optimizado para móviles */}
+      {isScanning && (
+        <div className="w-full max-w-md mx-auto mb-4 relative">
+          <div className="relative rounded-lg overflow-hidden border-2 border-green-500 bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              webkit-playsinline="true"
+              controls={false}
+              preload="metadata"
+              className="w-full h-auto object-cover"
+              style={{ aspectRatio: '4/3', minHeight: '200px' }}
+            />
+            {/* Overlay con instrucciones para móviles */}
+            <div className="absolute top-2 left-2 right-2 bg-black bg-opacity-70 text-white text-xs p-2 rounded">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Cámara activa - Enfoca el código de barras</span>
+              </div>
+            </div>
+            {/* Marco de enfoque */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-3/4 h-1/2 border-2 border-red-500 border-dashed rounded-lg opacity-50"></div>
+            </div>
+          </div>
+        </div>
+      )}
 
 
 

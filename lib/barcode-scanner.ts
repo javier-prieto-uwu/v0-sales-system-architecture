@@ -382,48 +382,74 @@ export class BarcodeScanner {
     detectarCodigo();
   }
 
-  // Detección simple de código de barras
+  // Detección mejorada de código de barras
   private detectarCodigoSimple(imageData: ImageData): void {
-    // Esta es una implementación básica
+    // Implementación mejorada que simula mejor la detección de códigos
     // En una implementación real, usarías una librería como ZXing o QuaggaJS
     
     const data = imageData.data;
     const width = imageData.width;
     const height = imageData.height;
     
-    // Buscar patrones de líneas verticales (simulación básica)
-    let lineCount = 0;
-    const threshold = 50;
+    // Analizar el centro de la imagen donde típicamente se enfocan los códigos
+    const centerY = Math.floor(height / 2);
+    const scanLines = 5; // Número de líneas a analizar
     
-    for (let y = Math.floor(height / 2); y < Math.floor(height / 2) + 10; y++) {
-      let lastPixelDark = false;
+    let totalTransitions = 0;
+    let validLines = 0;
+    
+    // Analizar múltiples líneas horizontales en el centro
+    for (let lineOffset = -scanLines; lineOffset <= scanLines; lineOffset++) {
+      const y = centerY + lineOffset * 10;
+      if (y < 0 || y >= height) continue;
       
-      for (let x = 0; x < width; x++) {
+      let transitions = 0;
+      let lastPixelDark = false;
+      const threshold = 128; // Umbral mejorado
+      
+      for (let x = 0; x < width; x += 2) { // Saltar píxeles para mejor rendimiento
         const pixelIndex = (y * width + x) * 4;
         const r = data[pixelIndex];
         const g = data[pixelIndex + 1];
         const b = data[pixelIndex + 2];
         
-        // Convertir a escala de grises
-        const gray = (r + g + b) / 3;
+        // Convertir a escala de grises con pesos más precisos
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
         const isDark = gray < threshold;
         
-        if (isDark !== lastPixelDark) {
-          lineCount++;
-          lastPixelDark = isDark;
+        if (x > 0 && isDark !== lastPixelDark) {
+          transitions++;
         }
+        lastPixelDark = isDark;
+      }
+      
+      // Una línea válida debe tener entre 20 y 100 transiciones
+      if (transitions >= 20 && transitions <= 100) {
+        totalTransitions += transitions;
+        validLines++;
       }
     }
     
-    // Si detectamos muchas transiciones, podría ser un código de barras
-    if (lineCount > 20) {
-      // Generar un código simulado (en implementación real, decodificarías el patrón)
-      const codigoSimulado = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    // Detectar código si hay suficientes líneas válidas con patrones consistentes
+    if (validLines >= 3 && totalTransitions > 80) {
+      // Generar un código más realista
+      const codigoSimulado = this.generarCodigoRealistaSimulado();
       console.log('📊 Código detectado (simulado):', codigoSimulado);
       this.config.onScanSuccess(codigoSimulado);
-      // NO detener el escáner automáticamente - mantener cámara activa
-      // this.detenerEscaner();
+      
+      // Pausar brevemente la detección para evitar múltiples detecciones del mismo código
+      this.pausarDeteccionTemporal();
     }
+  }
+  
+  // Pausar detección temporal para evitar múltiples lecturas
+  private pausarDeteccionTemporal(): void {
+    const wasScanning = this.escaneando;
+    this.escaneando = false;
+    
+    setTimeout(() => {
+      this.escaneando = wasScanning;
+    }, 2000); // Pausar por 2 segundos
   }
 
   // Generar código simulado para pruebas
@@ -432,6 +458,45 @@ export class BarcodeScanner {
     const prefijo = prefijos[Math.floor(Math.random() * prefijos.length)];
     const numero = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
     return prefijo + numero;
+  }
+  
+  // Generar código más realista para simulación
+  private generarCodigoRealistaSimulado(): string {
+    // Simular diferentes tipos de códigos de barras comunes
+    const tiposCodigo = [
+      // EAN-13 (códigos de productos)
+      () => {
+        const pais = ['75', '84', '77']; // Códigos de país para México, España, etc.
+        const paisCode = pais[Math.floor(Math.random() * pais.length)];
+        const empresa = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+        const producto = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+        return paisCode + empresa + producto;
+      },
+      // UPC-A (códigos estadounidenses)
+      () => {
+        const fabricante = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+        const producto = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+        const checksum = Math.floor(Math.random() * 10);
+        return fabricante + producto + checksum;
+      },
+      // Código 128 (alfanumérico)
+      () => {
+        const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const numeros = '0123456789';
+        let codigo = '';
+        for (let i = 0; i < 8; i++) {
+          if (Math.random() > 0.5) {
+            codigo += letras[Math.floor(Math.random() * letras.length)];
+          } else {
+            codigo += numeros[Math.floor(Math.random() * numeros.length)];
+          }
+        }
+        return codigo;
+      }
+    ];
+    
+    const generador = tiposCodigo[Math.floor(Math.random() * tiposCodigo.length)];
+    return generador();
   }
 
   // Detener escáner
