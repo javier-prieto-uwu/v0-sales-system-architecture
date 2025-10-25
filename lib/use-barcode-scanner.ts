@@ -30,17 +30,21 @@ export function useBarcodeScanner(onScanSuccess: (codigo: string) => void): UseB
   const startScanning = useCallback(async () => {
     console.log('🎯 Iniciando función startScanning...');
     
+    // Activar el estado de scanning primero para que se renderice el video
+    setIsScanning(true);
+    setError('');
+    
+    // Esperar un momento para que el DOM se actualice
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     if (!videoRef.current) {
       console.error('❌ Elemento de video no disponible');
       setError('Elemento de video no disponible. Intenta de nuevo.');
+      setIsScanning(false);
       return;
     }
 
     console.log('✅ Elemento de video disponible');
-    
-    // Activar el estado de scanning
-    setIsScanning(true);
-    setError('');
 
     try {
       clearError();

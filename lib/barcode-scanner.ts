@@ -17,6 +17,7 @@ export class BarcodeScanner {
   private escaneando: boolean = false;
   private config: ScannerConfig;
   private detectionInterval: number | null = null;
+  private ultimaDeteccion: number = 0;
 
   constructor(config: ScannerConfig) {
     this.config = config;
@@ -432,24 +433,26 @@ export class BarcodeScanner {
     
     // Detectar código si hay suficientes líneas válidas con patrones consistentes
     if (validLines >= 3 && totalTransitions > 80) {
-      // Generar un código más realista
-      const codigoSimulado = this.generarCodigoRealistaSimulado();
-      console.log('📊 Código detectado (simulado):', codigoSimulado);
-      this.config.onScanSuccess(codigoSimulado);
+      // Verificar si ha pasado suficiente tiempo desde la última detección
+      const tiempoActual = Date.now();
+      const tiempoEspera = 2000; // 2 segundos entre detecciones
       
-      // Pausar brevemente la detección para evitar múltiples detecciones del mismo código
-      this.pausarDeteccionTemporal();
+      if (tiempoActual - this.ultimaDeteccion > tiempoEspera) {
+        // Generar un código más realista
+        const codigoSimulado = this.generarCodigoRealistaSimulado();
+        console.log('📊 Código detectado (simulado):', codigoSimulado);
+        this.config.onScanSuccess(codigoSimulado);
+        
+        // Actualizar el tiempo de la última detección
+        this.pausarDeteccionTemporal();
+      }
     }
   }
   
   // Pausar detección temporal para evitar múltiples lecturas
   private pausarDeteccionTemporal(): void {
-    const wasScanning = this.escaneando;
-    this.escaneando = false;
-    
-    setTimeout(() => {
-      this.escaneando = wasScanning;
-    }, 2000); // Pausar por 2 segundos
+    // En lugar de pausar completamente, usar un flag temporal
+    this.ultimaDeteccion = Date.now();
   }
 
   // Generar código simulado para pruebas
