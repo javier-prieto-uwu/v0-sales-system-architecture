@@ -421,7 +421,8 @@ export class BarcodeScanner {
       const codigoSimulado = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
       console.log('📊 Código detectado (simulado):', codigoSimulado);
       this.config.onScanSuccess(codigoSimulado);
-      this.detenerEscaner();
+      // NO detener el escáner automáticamente - mantener cámara activa
+      // this.detenerEscaner();
     }
   }
 

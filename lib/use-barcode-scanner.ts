@@ -50,7 +50,8 @@ export function useBarcodeScanner(onScanSuccess: (codigo: string) => void): UseB
         onScanSuccess: (codigo: string) => {
           console.log('✅ Código escaneado:', codigo);
           onScanSuccess(codigo);
-          setIsScanning(false);
+          // NO detener el escáner - mantener la cámara activa
+          // setIsScanning(false); // Comentado para mantener cámara activa
         },
         onError: (errorMessage: string) => {
           console.error('❌ Error en escáner:', errorMessage);

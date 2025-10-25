@@ -60,12 +60,27 @@ export function PuntoVenta() {
     stopScanning,
     clearError
   } = useBarcodeScanner((codigo: string) => {
+    console.log('🔍 Código escaneado:', codigo);
+    
+    // Limpiar mensajes anteriores
+    setErrorMessage("");
+    setSuccessMessage("");
+    
     // Cuando se escanea un código, agregarlo al SKU input
-    setSkuInput(codigo)
-    // Intentar agregar automáticamente al carrito
-    setTimeout(() => {
-      agregarAlCarrito()
-    }, 100)
+    setSkuInput(codigo);
+    
+    // Mostrar feedback inmediato
+    setSuccessMessage(`📱 Código escaneado: ${codigo}`);
+    
+    // Intentar agregar automáticamente al carrito después de un breve delay
+    setTimeout(async () => {
+      try {
+        await agregarAlCarrito();
+      } catch (error) {
+        console.error('❌ Error al agregar automáticamente:', error);
+        setErrorMessage("Error al agregar el producto automáticamente. Intenta manualmente.");
+      }
+    }, 300);
   })
 
   const vendedoresFiltrados = vendedoresList.filter((v) => v.activo && v.tienda === tiendaVenta)
@@ -924,10 +939,19 @@ export function PuntoVenta() {
                     }
                   }}
                   variant={isScanning ? "destructive" : "outline"}
-                  size="icon"
-                  className={isScanning ? "bg-red-600 hover:bg-red-700" : "border-gray-300 hover:bg-gray-50"}
+                  className={`flex items-center gap-2 ${
+                    isScanning 
+                      ? "bg-red-600 hover:bg-red-700 text-white" 
+                      : "border-gray-300 hover:bg-gray-50"
+                  }`}
+                  title={isScanning ? "Detener cámara" : "Iniciar cámara"}
                 >
                   <Camera className="h-4 w-4" />
+                  {isScanning ? (
+                    <span className="text-sm">🔴 ACTIVA</span>
+                  ) : (
+                    <span className="text-sm">📷 Cámara</span>
+                  )}
                 </Button>
               </div>
 
@@ -987,11 +1011,19 @@ export function PuntoVenta() {
                 </div>
               </div>
               <div className="mt-4 text-center">
-                <p className="text-sm text-gray-600 mb-2">
-                  Apunta la cámara hacia el código de barras
-                </p>
+                <div className="mb-3">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <p className="text-sm font-medium text-green-600">
+                      🔴 Cámara activa - Escaneo continuo
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Apunta hacia el código de barras. Los códigos se agregarán automáticamente.
+                  </p>
+                </div>
                 {deviceInfo.isAndroid && (
-                  <p className="text-xs text-blue-600 mb-2">
+                  <p className="text-xs text-blue-600 mb-3">
                     📱 Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
                   </p>
                 )}
@@ -1000,7 +1032,7 @@ export function PuntoVenta() {
                   variant="destructive"
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  Detener Escáner
+                  🛑 Detener Escáner
                 </Button>
               </div>
             </div>
