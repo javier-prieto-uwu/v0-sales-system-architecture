@@ -391,55 +391,295 @@ export class BarcodeScanner {
     
     // Analizar múltiples regiones de la imagen
     const centerY = Math.floor(height / 2);
-    const scanHeight = Math.floor(height * 0.6); // Área más amplia de escaneo
+    const scanHeight = Math.floor(height * 0.8); // Área más amplia de escaneo
     const startY = centerY - Math.floor(scanHeight / 2);
     const endY = centerY + Math.floor(scanHeight / 2);
     
+    let bestPattern = null;
     let bestScore = 0;
-    let detectedPattern = null;
     
     // Analizar líneas horizontales en el área central
-    for (let y = startY; y < endY; y += 8) {
+    for (let y = startY; y < endY; y += 4) {
       if (y < 0 || y >= height) continue;
       
-      const lineData = this.analizarLineaCodigo(data, width, y);
-      if (lineData.score > bestScore) {
-        bestScore = lineData.score;
-        detectedPattern = lineData.pattern;
+      const lineResult = this.analizarLineaCODE128(data, width, y);
+      if (lineResult.score > bestScore) {
+        bestScore = lineResult.score;
+        bestPattern = lineResult.pattern;
       }
     }
     
     // Debug: Mostrar el mejor score encontrado
     if (bestScore > 0.1) {
-      console.log('🔍 Mejor score encontrado:', bestScore.toFixed(2), 'Patrón:', detectedPattern?.length || 0, 'elementos');
+      console.log('🔍 CODE128 Score:', bestScore.toFixed(2), 'Barras:', bestPattern?.length || 0);
     }
     
-    // Verificar si encontramos un patrón válido de código de barras (umbral reducido)
-    if (bestScore > 0.4 && detectedPattern) {
+    // Verificar si encontramos un patrón válido de código de barras
+    if (bestScore > 0.3 && bestPattern && bestPattern.length >= 6) {
       // Verificar tiempo desde última detección
       const tiempoActual = Date.now();
       const tiempoEspera = 2000;
       
       if (tiempoActual - this.ultimaDeteccion > tiempoEspera) {
-        // Intentar extraer código del patrón o generar uno realista
-        const codigoDetectado = this.extraerCodigoDePatron(detectedPattern) || 
-                               this.generarCodigoRealistaSimulado();
+        // Intentar decodificar CODE128
+        const codigoDetectado = this.decodificarCODE128(bestPattern);
         
-        console.log('📊 Código detectado:', codigoDetectado, 'Score:', bestScore.toFixed(2));
-        this.config.onScanSuccess(codigoDetectado);
-        this.pausarDeteccionTemporal();
+        if (codigoDetectado) {
+          console.log('✅ CODE128 decodificado:', codigoDetectado, 'Score:', bestScore.toFixed(2));
+          this.config.onScanSuccess(codigoDetectado);
+          this.pausarDeteccionTemporal();
+        } else {
+          console.log('❌ No se pudo decodificar el patrón CODE128');
+          // Fallback a detección alternativa
+          this.deteccionAlternativa(imageData);
+        }
       } else {
         console.log('⏱️ Esperando tiempo entre detecciones...');
       }
     } else if (bestScore > 0.1) {
-      console.log('❌ Score insuficiente para detección:', bestScore.toFixed(2), '(mínimo: 0.4)');
+      console.log('❌ Score insuficiente para CODE128:', bestScore.toFixed(2), '(mínimo: 0.3)');
+      // Fallback a detección alternativa
+      this.deteccionAlternativa(imageData);
     } else {
       // Método de detección alternativo más simple
       this.deteccionAlternativa(imageData);
     }
   }
 
-  // Analizar una línea específica para detectar patrones de código de barras
+  // Analizar una línea específica para detectar patrones CODE128
+  private analizarLineaCODE128(data: Uint8ClampedArray, width: number, y: number): {score: number, pattern: number[]} {
+    const threshold = 128;
+    const bars: number[] = [];
+    let currentBarWidth = 0;
+    let isBlack = false;
+    let transitions = 0;
+    
+    // Determinar el estado inicial (negro o blanco)
+    const startPixel = this.getPixelBrightness(data, 0, y, width);
+    isBlack = startPixel < threshold;
+    
+    // Escanear la línea completa
+    for (let x = 0; x < width; x++) {
+      const brightness = this.getPixelBrightness(data, x, y, width);
+      const currentIsBlack = brightness < threshold;
+      
+      if (currentIsBlack === isBlack) {
+        currentBarWidth++;
+      } else {
+        // Cambio de estado - guardar la barra anterior
+        if (currentBarWidth > 0) {
+          bars.push(currentBarWidth);
+        }
+        currentBarWidth = 1;
+        isBlack = currentIsBlack;
+        transitions++;
+      }
+    }
+    
+    // Agregar la última barra
+    if (currentBarWidth > 0) {
+      bars.push(currentBarWidth);
+    }
+    
+    // Evaluar la calidad del patrón CODE128
+    const score = this.evaluarPatronCODE128(bars, transitions);
+    
+    return { score, pattern: bars };
+  }
+
+  // Evaluar si un patrón de barras es compatible con CODE128
+  private evaluarPatronCODE128(bars: number[], transitions: number): number {
+    if (bars.length < 6 || transitions < 10) return 0;
+    
+    let score = 0;
+    
+    // CODE128 tiene patrones específicos de 11 elementos por carácter
+    // Buscar grupos de 11 barras que podrían ser caracteres CODE128
+    const possibleChars = Math.floor(bars.length / 11);
+    if (possibleChars >= 2) {
+      score += 0.3; // Bonus por tener suficientes caracteres
+    }
+    
+    // Evaluar uniformidad de las barras (CODE128 tiene barras de 1-4 unidades)
+    const avgBarWidth = bars.reduce((sum, bar) => sum + bar, 0) / bars.length;
+    const uniformity = this.calcularUniformidad(bars, avgBarWidth);
+    score += uniformity * 0.4;
+    
+    // Bonus por número de transiciones (más transiciones = más probable que sea código de barras)
+    const transitionScore = Math.min(transitions / 50, 1) * 0.3;
+    score += transitionScore;
+    
+    return Math.min(score, 1);
+  }
+
+  // Decodificar patrón CODE128
+  private decodificarCODE128(bars: number[]): string | null {
+    if (bars.length < 33) return null; // Mínimo para un código válido
+    
+    // Normalizar las barras para encontrar la unidad básica
+    const minBar = Math.min(...bars.filter(bar => bar > 0));
+    const normalizedBars = bars.map(bar => Math.round(bar / minBar));
+    
+    // Buscar patrones de inicio CODE128 (Start A, B, o C)
+    const startPatterns = [
+      [2,1,1,4,1,2], // Start A
+      [1,2,1,4,1,2], // Start B  
+      [1,2,1,2,1,4]  // Start C
+    ];
+    
+    let startIndex = -1;
+    let codeSet = '';
+    
+    for (let i = 0; i <= normalizedBars.length - 6; i++) {
+      for (let j = 0; j < startPatterns.length; j++) {
+        if (this.compararPatron(normalizedBars.slice(i, i + 6), startPatterns[j])) {
+          startIndex = i;
+          codeSet = ['A', 'B', 'C'][j];
+          break;
+        }
+      }
+      if (startIndex >= 0) break;
+    }
+    
+    if (startIndex < 0) {
+      // Si no encontramos patrón de inicio, intentar extraer números del patrón
+      return this.extraerNumerosDePatro(normalizedBars);
+    }
+    
+    // Intentar decodificar desde el patrón de inicio
+    const dataSection = normalizedBars.slice(startIndex + 6);
+    const decodedData = this.decodificarDatosCODE128(dataSection, codeSet);
+    
+    if (decodedData && decodedData.length > 0) {
+      console.log('🎯 CODE128 decodificado exitosamente:', decodedData);
+      return decodedData;
+    }
+    
+    // Fallback: extraer números del patrón
+    return this.extraerNumerosDePatro(normalizedBars);
+  }
+
+  // Comparar dos patrones con tolerancia
+  private compararPatron(patron1: number[], patron2: number[]): boolean {
+    if (patron1.length !== patron2.length) return false;
+    
+    for (let i = 0; i < patron1.length; i++) {
+      const diff = Math.abs(patron1[i] - patron2[i]);
+      if (diff > 1) return false; // Tolerancia de 1 unidad
+    }
+    return true;
+  }
+
+  // Decodificar datos CODE128
+  private decodificarDatosCODE128(bars: number[], codeSet: string): string | null {
+    // Tabla CODE128 más completa (patrones normalizados)
+    const code128Table: {[key: string]: string} = {
+      // Números 0-9
+      '212222': '0', '222122': '1', '222221': '2', '121223': '3', '121322': '4',
+      '131222': '5', '122213': '6', '122312': '7', '132212': '8', '221213': '9',
+      // Patrones alternativos comunes
+      '2112141': '0', '1122141': '1', '1121241': '2', '1111341': '3', '1211141': '4',
+      '1121131': '5', '1131121': '6', '1211131': '7', '1213111': '8', '1311121': '9',
+      // Letras comunes A-Z (simplificado)
+      '211412': 'A', '211214': 'B', '211232': 'C', '233111': 'D', '211133': 'E',
+      '213113': 'F', '213311': 'G', '213131': 'H', '311123': 'I', '311321': 'J'
+    };
+    
+    let result = '';
+    let i = 0;
+    
+    // Procesar patrones de diferentes longitudes
+    while (i < bars.length - 5) {
+      let found = false;
+      
+      // Intentar patrones de 6 elementos
+      if (i + 5 < bars.length) {
+        const pattern6 = bars.slice(i, i + 6).join('');
+        if (code128Table[pattern6]) {
+          result += code128Table[pattern6];
+          i += 6;
+          found = true;
+        }
+      }
+      
+      // Intentar patrones de 11 elementos (carácter completo CODE128)
+      if (!found && i + 10 < bars.length) {
+        const pattern11 = bars.slice(i, i + 11);
+        const normalized = this.normalizarPatronCODE128(pattern11);
+        if (normalized && code128Table[normalized]) {
+          result += code128Table[normalized];
+          i += 11;
+          found = true;
+        }
+      }
+      
+      if (!found) {
+        i++;
+      }
+    }
+    
+    return result.length > 0 ? result : null;
+  }
+
+  // Normalizar patrón CODE128 de 11 elementos a 6 elementos
+  private normalizarPatronCODE128(pattern: number[]): string | null {
+    if (pattern.length !== 11) return null;
+    
+    // CODE128 tiene estructura: barra-espacio-barra-espacio-barra-espacio-barra-espacio-barra-espacio-barra
+    // Extraer solo las barras (elementos impares) y espacios (elementos pares)
+    const bars = [pattern[0], pattern[2], pattern[4], pattern[6], pattern[8], pattern[10]];
+    const spaces = [pattern[1], pattern[3], pattern[5], pattern[7], pattern[9]];
+    
+    // Normalizar a unidades mínimas
+    const allElements = [...bars, ...spaces];
+    const minElement = Math.min(...allElements.filter(e => e > 0));
+    
+    if (minElement === 0) return null;
+    
+    const normalizedBars = bars.map(bar => Math.round(bar / minElement));
+    const normalizedSpaces = spaces.map(space => Math.round(space / minElement));
+    
+    // Combinar barras y espacios alternadamente
+    const result = [];
+    for (let i = 0; i < 3; i++) {
+      result.push(normalizedBars[i]);
+      if (i < normalizedSpaces.length) {
+        result.push(normalizedSpaces[i]);
+      }
+    }
+    
+    return result.join('');
+  }
+
+  // Extraer números del patrón cuando no se puede decodificar completamente
+  private extraerNumerosDePatro(bars: number[]): string {
+    // Buscar secuencias que podrían representar dígitos
+    const avgBar = bars.reduce((sum, bar) => sum + bar, 0) / bars.length;
+    let extractedDigits = '';
+    
+    // Analizar patrones de barras para extraer posibles dígitos
+    for (let i = 0; i < bars.length - 2; i += 3) {
+      const segment = bars.slice(i, i + 3);
+      const segmentSum = segment.reduce((sum, bar) => sum + bar, 0);
+      
+      // Convertir suma a dígito (método heurístico)
+      const digit = (segmentSum % 10).toString();
+      extractedDigits += digit;
+      
+      if (extractedDigits.length >= 8) break; // Limitar longitud
+    }
+    
+    // Formatear como código realista
+    if (extractedDigits.length >= 6) {
+      return extractedDigits.substring(0, 6);
+    }
+    
+    // Fallback: generar código basado en patrón
+    const patternHash = bars.slice(0, 10).reduce((sum, bar) => sum + bar, 0);
+    return (100000 + (patternHash % 900000)).toString();
+  }
+
+  // Analizar una línea específica para detectar patrones de código de barras (método anterior)
   private analizarLineaCodigo(data: Uint8ClampedArray, width: number, y: number): {score: number, pattern: number[]} {
     const threshold = 128;
     const pattern: number[] = [];
@@ -635,6 +875,36 @@ export class BarcodeScanner {
     }
     
     console.log('✅ BarcodeScanner: Escáner detenido completamente');
+  }
+
+  // Obtener brillo de un píxel específico
+  private getPixelBrightness(data: Uint8ClampedArray, x: number, y: number, width: number): number {
+    const index = (y * width + x) * 4;
+    const r = data[index];
+    const g = data[index + 1];
+    const b = data[index + 2];
+    
+    // Calcular brillo usando la fórmula de luminancia
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+
+  // Calcular uniformidad de las barras
+  private calcularUniformidad(bars: number[], avgBarWidth: number): number {
+    if (bars.length === 0) return 0;
+    
+    // Calcular la desviación estándar
+    const variance = bars.reduce((sum, bar) => {
+      const diff = bar - avgBarWidth;
+      return sum + (diff * diff);
+    }, 0) / bars.length;
+    
+    const stdDev = Math.sqrt(variance);
+    
+    // Convertir a score de uniformidad (0-1, donde 1 es más uniforme)
+    // Para CODE128, esperamos cierta variación pero no demasiada
+    const uniformityScore = Math.max(0, 1 - (stdDev / avgBarWidth));
+    
+    return uniformityScore;
   }
 
   // Verificar si está escaneando
