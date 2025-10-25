@@ -56,7 +56,6 @@ export function PuntoVenta() {
     videoRef,
     isScanning,
     error,
-    deviceInfo,
     startScanning,
     stopScanning,
     clearError
