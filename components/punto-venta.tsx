@@ -13,6 +13,7 @@ import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera } from "lucide-r
 import { supabase } from "@/lib/supabaseClient"
 import { formatCurrency } from "@/lib/utils"
 import { useBarcodeScanner } from "@/lib/use-barcode-scanner"
+import { obtenerVendedoresMCP, crearVendedorMCP, eliminarVendedorMCP } from "@/lib/supabase-mcp"
 
 export function PuntoVenta() {
   const [tiendaVenta, setTiendaVenta] = useState<Tienda>("Cancún")
@@ -83,44 +84,32 @@ export function PuntoVenta() {
     }, 300);
   })
 
-  const vendedoresFiltrados = vendedoresList.filter((v) => v.activo && v.tienda === tiendaVenta)
+  const vendedoresFiltrados = vendedoresList.filter((v) => v.tienda === tiendaVenta)
 
-  // Cargar vendedores desde la base de datos
+  // Cargar vendedores desde MCP
   useEffect(() => {
     const cargarVendedores = async () => {
       setLoading(true)
       setErrorMessage("")
       
       try {
-        // Intentar cargar desde la base de datos
-        const { data, error } = await supabase
-          .from("vendedores")
-          .select("*")
-          .eq("activo", true)
-          .eq("tienda", tiendaVenta)
-          .order("nombre", { ascending: true })
-
-        if (error) {
-          console.error("Error cargando vendedores:", error.message)
-          if (error.message.includes("table") && error.message.includes("vendedores")) {
-            setErrorMessage("La tabla 'vendedores' no existe en Supabase. Consulta SUPABASE_SETUP.md para configurar la base de datos. Usando datos locales.")
-          } else {
-            setErrorMessage(`Error cargando vendedores: ${error.message}. Usando datos locales.`)
-          }
-          // Usar datos hardcodeados como fallback
-          setVendedoresList(vendedores)
-        } else {
-          setVendedoresList(data || [])
-          if (data && data.length === 0) {
-            setErrorMessage("No se encontraron vendedores en la base de datos. Usando datos locales.")
-            setVendedoresList(vendedores)
-          }
+        // Cargar vendedores usando MCP
+        const vendedoresMCP = await obtenerVendedoresMCP()
+        
+        // Filtrar por tienda
+        const vendedoresFiltradosPorTienda = vendedoresMCP.filter(v => v.tienda === tiendaVenta)
+        
+        setVendedoresList(vendedoresFiltradosPorTienda)
+        
+        if (vendedoresFiltradosPorTienda.length === 0) {
+          setErrorMessage("No se encontraron vendedores para esta tienda. Usando datos locales.")
+          setVendedoresList(vendedores.filter(v => v.tienda === tiendaVenta))
         }
       } catch (error) {
-        console.error("Error conectando con la base de datos:", error)
-        setErrorMessage("Error de conexión con Supabase. Usando datos locales. Verifica tu configuración.")
+        console.error("Error cargando vendedores desde MCP:", error)
+        setErrorMessage("Error cargando vendedores desde MCP. Usando datos locales.")
         // Usar datos hardcodeados como fallback
-        setVendedoresList(vendedores)
+        setVendedoresList(vendedores.filter(v => v.tienda === tiendaVenta))
       }
       setLoading(false)
     }
@@ -162,36 +151,18 @@ export function PuntoVenta() {
     setSuccessMessage("")
     
     try {
-      const { data, error } = await supabase
-        .from("vendedores")
-        .insert([
-          {
-            nombre: nuevoVendedorNombre.trim(),
-            email: `${nuevoVendedorNombre.trim().toLowerCase().replace(/\s+/g, '.')}@empresa.com`,
-            tienda: tiendaVenta,
-            activo: true,
-          },
-        ])
-        .select()
-
-      if (error) {
-        console.error("Error creando vendedor:", error.message)
-        if (error.message.includes("table") && error.message.includes("vendedores")) {
-          setErrorMessage("La tabla 'vendedores' no existe en Supabase. Por favor, consulta SUPABASE_SETUP.md para configurar la base de datos.")
-        } else {
-          setErrorMessage(`Error al crear el vendedor: ${error.message}`)
-        }
-      } else {
-        // Actualizar la lista local
-        setVendedoresList([...vendedoresList, ...(data || [])])
-        setNuevoVendedorNombre("")
-        setSuccessMessage("Vendedor creado exitosamente")
-        // Limpiar mensaje después de 3 segundos
-        setTimeout(() => setSuccessMessage(""), 3000)
-      }
+      // Crear vendedor usando MCP
+      const nuevoVendedor = await crearVendedorMCP(nuevoVendedorNombre.trim(), tiendaVenta)
+      
+      // Actualizar la lista local
+      setVendedoresList([...vendedoresList, nuevoVendedor])
+      setNuevoVendedorNombre("")
+      setSuccessMessage("Vendedor creado exitosamente")
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setSuccessMessage(""), 3000)
     } catch (error) {
-      console.error("Error conectando con la base de datos:", error)
-      setErrorMessage("Error de conexión con la base de datos. Verifica tu configuración de Supabase.")
+      console.error("Error creando vendedor con MCP:", error)
+      setErrorMessage("Error al crear el vendedor con MCP. Verifica la configuración.")
     }
     setLoading(false)
   }
@@ -207,33 +178,21 @@ export function PuntoVenta() {
     setSuccessMessage("")
     
     try {
-      // Intentar eliminar de la base de datos
-      const { error } = await supabase
-        .from("vendedores")
-        .delete()
-        .eq("id", vendedorId)
-
-      if (error) {
-        console.error("Error eliminando vendedor:", error.message)
-        if (error.message.includes("table") && error.message.includes("vendedores")) {
-          setErrorMessage("La tabla 'vendedores' no existe en Supabase. Por favor, consulta SUPABASE_SETUP.md para configurar la base de datos.")
-        } else {
-          setErrorMessage(`Error al eliminar el vendedor: ${error.message}`)
-        }
-      } else {
-        // Actualizar la lista local
-        setVendedoresList(vendedoresList.filter((v) => v.id !== vendedorId))
-        // Si el vendedor eliminado estaba seleccionado, limpiar la selección
-        if (vendedorSeleccionado === vendedorNombre) {
-          setVendedorSeleccionado("")
-        }
-        setSuccessMessage("Vendedor eliminado exitosamente")
-        // Limpiar mensaje después de 3 segundos
-        setTimeout(() => setSuccessMessage(""), 3000)
+      // Eliminar vendedor usando MCP
+      await eliminarVendedorMCP(vendedorId)
+      
+      // Actualizar la lista local
+      setVendedoresList(vendedoresList.filter((v) => v.id !== vendedorId))
+      // Si el vendedor eliminado estaba seleccionado, limpiar la selección
+      if (vendedorSeleccionado === vendedorNombre) {
+        setVendedorSeleccionado("")
       }
+      setSuccessMessage("Vendedor eliminado exitosamente")
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setSuccessMessage(""), 3000)
     } catch (error) {
-      console.error("Error conectando con la base de datos:", error)
-      setErrorMessage("Error de conexión con la base de datos. Verifica tu configuración de Supabase.")
+      console.error("Error eliminando vendedor con MCP:", error)
+      setErrorMessage("Error al eliminar el vendedor con MCP. Verifica la configuración.")
     }
     setLoading(false)
   }
@@ -975,6 +934,26 @@ export function PuntoVenta() {
               </Button>
             </div>
           </div>
+          
+          {/* Indicador de cámara activa */}
+          {isScanning && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <p className="text-sm font-medium text-green-600">
+                  🔴 Cámara activa - Escaneo continuo
+                </p>
+              </div>
+              <p className="text-xs text-gray-600 text-center">
+                Apunta hacia el código de barras. Los códigos se agregarán automáticamente.
+              </p>
+              {deviceInfo.isAndroid && (
+                <p className="text-xs text-blue-600 text-center mt-2">
+                  📱 Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -991,54 +970,7 @@ export function PuntoVenta() {
         style={{ aspectRatio: '4/3' }}
       />
 
-      {/* Contenedor del escáner de código de barras */}
-      {isScanning && (
-        <Card className="bg-white border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-black flex items-center gap-2">
-              <Camera className="h-5 w-5" />
-              Escáner de Código de Barras
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <div className="w-full max-w-md mx-auto rounded-lg border border-gray-300 bg-black relative overflow-hidden" style={{ aspectRatio: '4/3' }}>
-                {/* Contenedor para mostrar el video */}
-                <div id="video-container" className="w-full h-full relative">
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                    <div className="border-2 border-red-500 w-48 h-32 rounded-lg opacity-50"></div>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 text-center">
-                <div className="mb-3">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-medium text-green-600">
-                      🔴 Cámara activa - Escaneo continuo
-                    </p>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    Apunta hacia el código de barras. Los códigos se agregarán automáticamente.
-                  </p>
-                </div>
-                {deviceInfo.isAndroid && (
-                  <p className="text-xs text-blue-600 mb-3">
-                    📱 Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
-                  </p>
-                )}
-                <Button
-                  onClick={stopScanning}
-                  variant="destructive"
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  🛑 Detener Escáner
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       <Card className="bg-white border-gray-200">
         <CardHeader>
