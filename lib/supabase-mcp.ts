@@ -1,6 +1,6 @@
 import type { Vendedor } from "./types"
 
-// Configuración del proyecto Supabase
+// Configuración del proyecto Supabas
 const SUPABASE_PROJECT_ID = "invtoaqnuaxmsuvstysu"
 
 // Función para obtener vendedores activos desde Supabase usando MCP
