@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { vendedores, productos, equipos, inventarioProductos, inventarioEquipos } from "@/lib/data"
 import type { Tienda, MetodoPago, TipoTarjeta, ItemCarrito, Cliente } from "@/lib/types"
-import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera } from "lucide-react"
+import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera, TestTube, Circle } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import { formatCurrency } from "@/lib/utils"
 import { useBarcodeScanner } from "@/lib/use-barcode-scanner"
@@ -61,7 +61,7 @@ export function PuntoVenta() {
     stopScanning,
     clearError
   } = useBarcodeScanner((codigo: string) => {
-    console.log('🔍 Código escaneado:', codigo);
+    console.log('Código escaneado:', codigo);
     
     // Limpiar mensajes anteriores
     setErrorMessage("");
@@ -71,14 +71,14 @@ export function PuntoVenta() {
     setSkuInput(codigo);
     
     // Mostrar feedback inmediato
-    setSuccessMessage(`📱 Código escaneado: ${codigo}`);
+    setSuccessMessage(`Código escaneado: ${codigo}`);
     
     // Intentar agregar automáticamente al carrito después de un breve delay
     setTimeout(async () => {
       try {
         await agregarAlCarrito();
       } catch (error) {
-        console.error('❌ Error al agregar automáticamente:', error);
+        console.error('Error al agregar automáticamente:', error);
         setErrorMessage("Error al agregar el producto automáticamente. Intenta manualmente.");
       }
     }, 300);
@@ -869,7 +869,7 @@ export function PuntoVenta() {
                 />
                 <Button
                   onClick={async () => {
-                    console.log('🧪 Botón de prueba de cámara clickeado');
+                    console.log('Botón de prueba de cámara clickeado');
                     const { BarcodeScanner } = await import('@/lib/barcode-scanner');
                     const scanner = new BarcodeScanner({
                       onScanSuccess: () => {},
@@ -878,22 +878,23 @@ export function PuntoVenta() {
                     });
                     const resultado = await scanner.probarCamara();
                     alert(resultado);
-                    console.log('🧪 Resultado de prueba:', resultado);
+                    console.log('Resultado de prueba:', resultado);
                   }}
                   variant="secondary"
                   size="sm"
                   className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border-yellow-300"
                 >
-                  🧪 Probar
+                  <TestTube className="h-4 w-4 mr-1" />
+                  Probar
                 </Button>
                 <Button
                   onClick={() => {
-                    console.log('🔘 Botón de cámara clickeado, isScanning:', isScanning);
+                    console.log('Botón de cámara clickeado, isScanning:', isScanning);
                     if (isScanning) {
-                      console.log('🛑 Llamando stopScanning');
+                      console.log('Llamando stopScanning');
                       stopScanning();
                     } else {
-                      console.log('🎥 Llamando startScanning');
+                      console.log('Llamando startScanning');
                       startScanning();
                     }
                   }}
@@ -907,9 +908,12 @@ export function PuntoVenta() {
                 >
                   <Camera className="h-4 w-4" />
                   {isScanning ? (
-                    <span className="text-sm">🔴 ACTIVA</span>
+                    <>
+                      <Circle className="h-3 w-3 fill-current animate-pulse" />
+                      <span className="text-sm">ACTIVA</span>
+                    </>
                   ) : (
-                    <span className="text-sm">📷 Cámara</span>
+                    <span className="text-sm">Cámara</span>
                   )}
                 </Button>
               </div>
@@ -941,7 +945,7 @@ export function PuntoVenta() {
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <p className="text-sm font-medium text-green-600">
-                  🔴 Cámara activa - Escaneo continuo
+                  Cámara activa - Escaneo continuo
                 </p>
               </div>
               <p className="text-xs text-gray-600 text-center">
@@ -949,7 +953,7 @@ export function PuntoVenta() {
               </p>
               {deviceInfo.isAndroid && (
                 <p className="text-xs text-blue-600 text-center mt-2">
-                  📱 Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
+                  Android: Asegúrate de permitir el acceso a la cámara cuando se solicite
                 </p>
               )}
             </div>
