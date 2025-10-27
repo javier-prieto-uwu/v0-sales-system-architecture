@@ -17,21 +17,55 @@ export class BarcodeScanner {
     try {
       this.video = videoElement;
       
+      // Detectar si es un dispositivo móvil
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      console.log(`📱 Dispositivo móvil detectado: ${isMobile}`);
+
+      // Configuración específica para móviles
+      const videoConstraints = isMobile ? {
+        video: {
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+          facingMode: { exact: 'environment' }, // Forzar cámara trasera en móviles
+          focusMode: 'continuous',
+          exposureMode: 'continuous',
+          whiteBalanceMode: 'continuous'
+        }
+      } : {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'environment'
+        }
+      };
+
       // Primero obtener acceso a la cámara
       console.log('🎥 Solicitando acceso a la cámara...');
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: "environment" // Cámara trasera preferida
-        }
-      });
+      
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia(videoConstraints);
+      } catch (error) {
+        // Si falla con cámara trasera específica, intentar con cualquier cámara
+        console.log('⚠️ Fallback: intentando con cualquier cámara disponible');
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { min: 640, ideal: 1280 },
+            height: { min: 480, ideal: 720 },
+            facingMode: 'environment'
+          }
+        });
+      }
 
       // Asignar el stream al elemento de video
       this.video.srcObject = this.stream;
       this.video.setAttribute('playsinline', 'true');
       this.video.setAttribute('autoplay', 'true');
       this.video.setAttribute('muted', 'true');
+      
+      // Configurar atributos específicos para móviles
+      if (isMobile) {
+        this.video.setAttribute('webkit-playsinline', 'true');
+      }
       
       // Esperar a que el video esté listo
       await new Promise<void>((resolve, reject) => {
@@ -47,26 +81,36 @@ export class BarcodeScanner {
 
       console.log('✅ Stream de video configurado correctamente');
       
-      // Configurar QuaggaJS
+      // Esperar un momento para que el video se estabilice
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Configurar QuaggaJS con configuración optimizada para móviles
       const config = {
         inputStream: {
           name: "Live",
           type: "LiveStream",
           target: this.video,
           constraints: {
-            width: 640,
-            height: 480,
-            facingMode: "environment"
+            width: isMobile ? 1280 : 1280,
+            height: isMobile ? 720 : 720,
+            facingMode: 'environment'
           }
         },
         locator: {
-          patchSize: "medium",
-          halfSample: true
+          patchSize: isMobile ? "large" : "medium", // Parches más grandes en móviles
+          halfSample: isMobile ? false : true // Mejor calidad en móviles
         },
-        numOfWorkers: 2,
-        frequency: 10,
+        numOfWorkers: isMobile ? 1 : 2, // Menos workers en móviles
+        frequency: isMobile ? 5 : 10, // Menor frecuencia en móviles para mejor rendimiento
         decoder: {
-          readers: [
+          readers: isMobile ? [
+            // Reducir lectores en móviles para mejor rendimiento
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "upc_reader"
+          ] : [
             "code_128_reader",
             "ean_reader",
             "ean_8_reader",
@@ -78,7 +122,21 @@ export class BarcodeScanner {
             "i2of5_reader"
           ]
         },
-        locate: true
+        locate: true,
+        debug: {
+          showCanvas: false,
+          showPatches: false,
+          showFoundPatches: false,
+          showSkeleton: false,
+          showLabels: false,
+          showPatchLabels: false,
+          showRemainingPatchLabels: false,
+          boxFromPatches: {
+            showTransformed: false,
+            showTransformedBox: false,
+            showBB: false
+          }
+        }
       };
 
       // Inicializar QuaggaJS

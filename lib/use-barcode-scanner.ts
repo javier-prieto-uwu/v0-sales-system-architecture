@@ -48,6 +48,18 @@ export function useBarcodeScanner(onScanSuccess: (codigo: string) => void): UseB
     try {
       console.log('🔄 Iniciando configuración del escáner...');
       
+      // Detectar dispositivo móvil
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      console.log(`📱 Dispositivo móvil: ${isMobile}`);
+      
+      // Configurar el video element para móviles antes de inicializar el escáner
+      if (isMobile && videoRef.current) {
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('webkit-playsinline', 'true');
+        videoRef.current.muted = true;
+        videoRef.current.autoplay = true;
+      }
+      
       // Crear el escáner con el callback de éxito
       const scanner = new BarcodeScanner((codigo: string) => {
         console.log('✅ Código escaneado:', codigo);
@@ -76,6 +88,10 @@ export function useBarcodeScanner(onScanSuccess: (codigo: string) => void): UseB
           errorMessage = 'La cámara no es compatible con este navegador.';
         } else if (err.name === 'NotReadableError') {
           errorMessage = 'La cámara está siendo usada por otra aplicación.';
+        } else if (err.name === 'OverconstrainedError') {
+          errorMessage = 'Las configuraciones de cámara no son compatibles con este dispositivo. Intenta con otro navegador.';
+        } else if (err.message.includes('facingMode')) {
+          errorMessage = 'No se pudo acceder a la cámara trasera. Verifica que tu dispositivo tenga cámara trasera disponible.';
         } else {
           errorMessage = err.message;
         }

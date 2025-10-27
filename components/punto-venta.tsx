@@ -933,7 +933,24 @@ export function PuntoVenta() {
             controls={false}
             preload="metadata"
             className="w-full h-auto object-cover"
-            style={{ aspectRatio: '4/3', minHeight: '200px' }}
+            style={{ 
+              aspectRatio: '4/3', 
+              minHeight: '200px',
+              maxHeight: '400px',
+              backgroundColor: '#000'
+            }}
+            onLoadedMetadata={() => {
+              console.log('📹 Video metadata cargada');
+              if (videoRef.current) {
+                videoRef.current.play().catch(console.error);
+              }
+            }}
+            onCanPlay={() => {
+              console.log('📹 Video listo para reproducir');
+            }}
+            onError={(e) => {
+              console.error('❌ Error en el video:', e);
+            }}
           />
           {/* Overlay con instrucciones para móviles */}
           {isScanning && (
