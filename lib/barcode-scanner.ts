@@ -17,6 +17,36 @@ export class BarcodeScanner {
     try {
       this.video = videoElement;
       
+      // Primero obtener acceso a la cámara
+      console.log('🎥 Solicitando acceso a la cámara...');
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "environment" // Cámara trasera preferida
+        }
+      });
+
+      // Asignar el stream al elemento de video
+      this.video.srcObject = this.stream;
+      this.video.setAttribute('playsinline', 'true');
+      this.video.setAttribute('autoplay', 'true');
+      this.video.setAttribute('muted', 'true');
+      
+      // Esperar a que el video esté listo
+      await new Promise<void>((resolve, reject) => {
+        this.video!.onloadedmetadata = () => {
+          console.log('✅ Video metadata cargada');
+          this.video!.play().then(() => {
+            console.log('✅ Video reproduciendo');
+            resolve();
+          }).catch(reject);
+        };
+        this.video!.onerror = reject;
+      });
+
+      console.log('✅ Stream de video configurado correctamente');
+      
       // Configurar QuaggaJS
       const config = {
         inputStream: {
@@ -26,7 +56,7 @@ export class BarcodeScanner {
           constraints: {
             width: 640,
             height: 480,
-            facingMode: "environment" // Cámara trasera
+            facingMode: "environment"
           }
         },
         locator: {
@@ -55,10 +85,11 @@ export class BarcodeScanner {
       await new Promise<void>((resolve, reject) => {
         Quagga.init(config, (err) => {
           if (err) {
-            console.error('Error inicializando QuaggaJS:', err);
+            console.error('❌ Error inicializando QuaggaJS:', err);
             reject(err);
             return;
           }
+          console.log('✅ QuaggaJS inicializado correctamente');
           resolve();
         });
       });
@@ -70,9 +101,16 @@ export class BarcodeScanner {
       Quagga.start();
       this.isScanning = true;
 
-      console.log('Escáner de códigos de barras iniciado con QuaggaJS');
+      console.log('✅ Escáner de códigos de barras iniciado con QuaggaJS');
     } catch (error) {
-      console.error('Error al iniciar el escáner:', error);
+      console.error('❌ Error al iniciar el escáner:', error);
+      
+      // Limpiar recursos en caso de error
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+        this.stream = null;
+      }
+      
       throw error;
     }
   }

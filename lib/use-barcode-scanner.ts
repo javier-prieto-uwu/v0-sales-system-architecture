@@ -65,7 +65,22 @@ export function useBarcodeScanner(onScanSuccess: (codigo: string) => void): UseB
       
     } catch (err) {
       console.error('❌ Error al inicializar el escáner:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Error al inicializar el escáner';
+      let errorMessage = 'Error al inicializar el escáner';
+      
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          errorMessage = 'Acceso a la cámara denegado. Por favor, permite el acceso a la cámara y recarga la página.';
+        } else if (err.name === 'NotFoundError') {
+          errorMessage = 'No se encontró ninguna cámara en el dispositivo.';
+        } else if (err.name === 'NotSupportedError') {
+          errorMessage = 'La cámara no es compatible con este navegador.';
+        } else if (err.name === 'NotReadableError') {
+          errorMessage = 'La cámara está siendo usada por otra aplicación.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
       setIsScanning(false);
     }
