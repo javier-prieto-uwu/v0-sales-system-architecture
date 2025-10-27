@@ -921,37 +921,37 @@ export function PuntoVenta() {
         </CardContent>
       </Card>
 
-      {/* Elemento de video para la cámara - Optimizado para móviles */}
-      {isScanning && (
-        <div className="w-full max-w-md mx-auto mb-4 relative">
-          <div className="relative rounded-lg overflow-hidden border-2 border-green-500 bg-black">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              webkit-playsinline="true"
-              controls={false}
-              preload="metadata"
-              className="w-full h-auto object-cover"
-              style={{ aspectRatio: '4/3', minHeight: '200px' }}
-            />
-            {/* Overlay con instrucciones para móviles */}
+      {/* Elemento de video para la cámara - Siempre en DOM pero solo visible cuando se escanea */}
+      <div className={`w-full max-w-md mx-auto mb-4 relative ${isScanning ? 'block' : 'hidden'}`}>
+        <div className="relative rounded-lg overflow-hidden border-2 border-green-500 bg-black">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            webkit-playsinline="true"
+            controls={false}
+            preload="metadata"
+            className="w-full h-auto object-cover"
+            style={{ aspectRatio: '4/3', minHeight: '200px' }}
+          />
+          {/* Overlay con instrucciones para móviles */}
+          {isScanning && (
             <div className="absolute top-2 left-2 right-2 bg-black bg-opacity-70 text-white text-xs p-2 rounded">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span>Cámara activa - Enfoca el código de barras</span>
               </div>
             </div>
-            {/* Marco de enfoque */}
+          )}
+          {/* Marco de enfoque */}
+          {isScanning && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-3/4 h-1/2 border-2 border-red-500 border-dashed rounded-lg opacity-50"></div>
             </div>
-          </div>
+          )}
         </div>
-      )}
-
-
+      </div>
 
       <Card className="bg-white border-gray-200">
         <CardHeader>

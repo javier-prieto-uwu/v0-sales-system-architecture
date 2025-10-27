@@ -26,12 +26,22 @@ export function useBarcodeScanner(onScanSuccess: (codigo: string) => void): UseB
     // Limpiar errores previos
     setError('');
     
-    // Verificar que el elemento de video esté disponible
-    if (!videoRef.current) {
-      console.error('❌ Elemento de video no disponible');
-      setError('Elemento de video no disponible. Intenta de nuevo.');
-      return;
-    }
+    // Esperar a que el elemento de video esté disponible con reintentos
+      let retries = 0;
+      const maxRetries = 10;
+      
+      while (!videoRef.current && retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+
+      // Verificar que el elemento de video esté disponible
+      if (!videoRef.current) {
+        console.error('❌ Elemento de video no disponible después de reintentos');
+        setError('Elemento de video no disponible. Intenta de nuevo.');
+        setIsScanning(false);
+        return;
+      }
 
     console.log('✅ Elemento de video disponible');
 
