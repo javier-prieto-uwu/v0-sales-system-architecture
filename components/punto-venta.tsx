@@ -545,9 +545,16 @@ export function PuntoVenta() {
         
         if (confirmar) {
           console.log("✅ Usuario confirmó, agregando al campo SKU...")
+          console.log("🔍 Estado actual de skuInput antes:", skuInput)
           
           // Agregar el código escaneado al campo SKU
           setSkuInput(firstCode.rawValue)
+          console.log("🔄 Ejecutando setSkuInput con:", firstCode.rawValue)
+          
+          // Verificar después de un pequeño delay
+          setTimeout(() => {
+            console.log("🔍 Estado de skuInput después del setSkuInput:", skuInput)
+          }, 100)
           
           // Desactivar el escáner
           desactivarEscaner()
