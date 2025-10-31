@@ -59,6 +59,7 @@ export function PuntoVenta() {
   // Estados para el escáner de códigos de barras
   const [mostrarEscaner, setMostrarEscaner] = useState(false)
   const [escanerActivo, setEscanerActivo] = useState(false)
+  const [esMobile, setEsMobile] = useState(false)
 
   const vendedoresFiltrados = vendedoresList.filter((v) => v.activo && v.tienda === tiendaVenta)
 
@@ -104,6 +105,19 @@ export function PuntoVenta() {
 
     cargarVendedores()
   }, [tiendaVenta])
+
+  // Detectar si es un dispositivo móvil
+  useEffect(() => {
+    const detectarMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase())
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+      setEsMobile(isMobileDevice || isTouchDevice)
+      console.log("🔍 Dispositivo detectado:", isMobileDevice || isTouchDevice ? "Móvil" : "Escritorio")
+    }
+    
+    detectarMobile()
+  }, [])
 
   // Cargar clientes desde la base de datos
   useEffect(() => {
@@ -514,11 +528,49 @@ export function PuntoVenta() {
   }
 
   // Funciones para el escáner de códigos de barras
-  const activarEscaner = () => {
-    console.log("Activando escáner...")
-    setMostrarEscaner(true)
-    setEscanerActivo(true)
-    setErrorMessage("")
+  const activarEscaner = async () => {
+    console.log("🔄 Activando escáner...")
+    console.log("📱 Dispositivo móvil:", esMobile)
+    
+    try {
+      // Verificar permisos de cámara, especialmente importante en móviles
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log("🔍 Verificando permisos de cámara...")
+        
+        // Solicitar permisos explícitamente
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: esMobile ? 'environment' : 'user',
+            width: esMobile ? { ideal: 1280, max: 1920 } : { ideal: 1280 },
+            height: esMobile ? { ideal: 720, max: 1080 } : { ideal: 720 }
+          } 
+        })
+        
+        // Detener el stream inmediatamente, solo queríamos verificar permisos
+        stream.getTracks().forEach(track => track.stop())
+        
+        console.log("✅ Permisos de cámara concedidos")
+        setMostrarEscaner(true)
+        setEscanerActivo(true)
+        setErrorMessage("")
+      } else {
+        throw new Error("getUserMedia no está disponible")
+      }
+    } catch (error) {
+      console.error("❌ Error al acceder a la cámara:", error)
+      let errorMsg = "Error al acceder a la cámara. "
+      
+      if (esMobile) {
+        errorMsg += "En dispositivos móviles, asegúrate de:\n" +
+                   "• Permitir el acceso a la cámara cuando se solicite\n" +
+                   "• Usar HTTPS (no HTTP)\n" +
+                   "• Verificar que la cámara no esté siendo usada por otra app"
+      } else {
+        errorMsg += "Verifica que tengas una cámara conectada y permisos habilitados."
+      }
+      
+      setErrorMessage(errorMsg)
+    }
   }
 
   const desactivarEscaner = () => {
@@ -578,17 +630,53 @@ export function PuntoVenta() {
     console.error("🚨 Error del escáner:", error)
     console.error("🔍 Tipo de error:", error?.name)
     console.error("📝 Mensaje de error:", error?.message)
+    console.error("📱 Dispositivo móvil:", esMobile)
     console.error("📊 Error completo:", JSON.stringify(error, null, 2))
     
+    let errorMsg = ""
+    
     if (error?.name === 'NotAllowedError') {
-      setErrorMessage("Acceso a la cámara denegado. Por favor, permite el acceso a la cámara para usar el escáner.")
+      errorMsg = "Acceso a la cámara denegado. "
+      if (esMobile) {
+        errorMsg += "En dispositivos móviles:\n" +
+                   "• Toca 'Permitir' cuando aparezca el mensaje de permisos\n" +
+                   "• Ve a Configuración > Sitios web > Permisos de cámara\n" +
+                   "• Asegúrate de usar HTTPS (no HTTP)"
+      } else {
+        errorMsg += "Por favor, permite el acceso a la cámara para usar el escáner."
+      }
     } else if (error?.name === 'NotFoundError') {
-      setErrorMessage("No se encontró ninguna cámara disponible.")
+      errorMsg = "No se encontró ninguna cámara disponible. "
+      if (esMobile) {
+        errorMsg += "Verifica que:\n" +
+                   "• La cámara no esté siendo usada por otra aplicación\n" +
+                   "• El dispositivo tenga una cámara trasera funcional"
+      }
     } else if (error?.name === 'NotSupportedError') {
-      setErrorMessage("El escáner de códigos no es compatible con este navegador.")
+      errorMsg = "El escáner de códigos no es compatible con este navegador. "
+      if (esMobile) {
+        errorMsg += "Intenta usar:\n" +
+                   "• Chrome, Safari o Firefox en su versión más reciente\n" +
+                   "• Asegúrate de que el navegador esté actualizado"
+      }
+    } else if (error?.name === 'OverconstrainedError') {
+      errorMsg = "La configuración de la cámara no es compatible. "
+      if (esMobile) {
+        errorMsg += "Esto puede ocurrir en algunos dispositivos móviles. Intenta:\n" +
+                   "• Cerrar otras aplicaciones que usen la cámara\n" +
+                   "• Reiniciar el navegador"
+      }
     } else {
-      setErrorMessage(`Error al acceder a la cámara: ${error?.message || 'Error desconocido'}`)
+      errorMsg = `Error al acceder a la cámara: ${error?.message || 'Error desconocido'}`
+      if (esMobile) {
+        errorMsg += "\n\nConsejos para móviles:\n" +
+                   "• Asegúrate de usar HTTPS\n" +
+                   "• Permite permisos de cámara\n" +
+                   "• Cierra otras apps que usen la cámara"
+      }
     }
+    
+    setErrorMessage(errorMsg)
   }
 
   const eliminarDelCarrito = (sku: string) => {
@@ -1021,8 +1109,10 @@ export function PuntoVenta() {
                         onError={manejarErrorEscaner}
                         constraints={{
                           facingMode: 'environment',
-                          width: { ideal: 1280 },
-                          height: { ideal: 720 }
+                          width: esMobile ? { ideal: 1280, max: 1920, min: 640 } : { ideal: 1280 },
+                          height: esMobile ? { ideal: 720, max: 1080, min: 480 } : { ideal: 720 },
+                          frameRate: esMobile ? { ideal: 30, max: 60 } : { ideal: 30 },
+                          aspectRatio: esMobile ? { ideal: 16/9 } : undefined
                         }}
                         formats={[
                           'qr_code',
@@ -1035,18 +1125,25 @@ export function PuntoVenta() {
                         ]}
                         components={{
                           finder: true,
-                          torch: true
+                          torch: esMobile // Solo mostrar linterna en móviles
                         }}
                         styles={{
                           container: {
                             width: '100%',
-                            height: '400px',
+                            height: esMobile ? '300px' : '400px',
                             borderRadius: '8px',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            backgroundColor: '#000'
+                          },
+                          video: {
+                            objectFit: 'cover',
+                            width: '100%',
+                            height: '100%'
                           }
                         }}
                         allowMultiple={false}
-                        scanDelay={300}
+                        scanDelay={esMobile ? 500 : 300} // Delay más largo en móviles
+                        paused={false}
                       />
                     </div>
                   )}
