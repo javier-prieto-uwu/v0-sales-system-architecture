@@ -468,21 +468,19 @@ export function PuntoVenta() {
     }
   }
 
-  const agregarAlCarrito = async () => {
-    if (!skuInput.trim()) return
+  const agregarProductoAlCarrito = async (sku: string, cantidad: number = 1) => {
+    if (!sku.trim()) return false
 
     setLoading(true)
     setErrorMessage("")
 
     try {
-      const item = await buscarProducto(skuInput)
+      const item = await buscarProducto(sku)
       if (!item) {
         setErrorMessage("Producto no encontrado en inventario de refacciones ni equipos")
         setLoading(false)
-        return
+        return false
       }
-
-      const cantidad = Number.parseInt(cantidadInput) || 1
 
       const itemExistente = carrito.find((c) => c.sku === item.sku)
       if (itemExistente) {
@@ -491,16 +489,28 @@ export function PuntoVenta() {
         setCarrito([...carrito, { ...item, cantidad }])
       }
 
-      setSkuInput("")
-      setCantidadInput("1")
       setSuccessMessage(`${item.nombre} agregado al carrito`)
       setTimeout(() => setSuccessMessage(""), 2000)
+      return true
     } catch (error) {
       console.error("Error agregando al carrito:", error)
       setErrorMessage("Error al buscar el producto")
+      return false
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const agregarAlCarrito = async () => {
+    if (!skuInput.trim()) return
+
+    const cantidad = Number.parseInt(cantidadInput) || 1
+    const agregado = await agregarProductoAlCarrito(skuInput, cantidad)
     
-    setLoading(false)
+    if (agregado) {
+      setSkuInput("")
+      setCantidadInput("1")
+    }
   }
 
   // Funciones para el escáner de códigos de barras
@@ -517,7 +527,7 @@ export function PuntoVenta() {
     setEscanerActivo(false)
   }
 
-  const manejarEscaneo = (detectedCodes: any[]) => {
+  const manejarEscaneo = async (detectedCodes: any[]) => {
     console.log("🔍 manejarEscaneo ejecutado")
     console.log("📊 Códigos detectados:", detectedCodes)
     console.log("📏 Cantidad de códigos:", detectedCodes?.length || 0)
@@ -534,13 +544,12 @@ export function PuntoVenta() {
         const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al SKU?`)
         
         if (confirmar) {
-          // Si confirma, agregar el código al SKU y cerrar escáner
-          setSkuInput(firstCode.rawValue)
-          setSuccessMessage(`Código agregado: ${firstCode.rawValue}`)
+          console.log("✅ Usuario confirmó, agregando al carrito...")
           desactivarEscaner()
           
-          // Limpiar mensaje después de 3 segundos
-          setTimeout(() => setSuccessMessage(""), 3000)
+          // Agregar automáticamente al carrito con el código escaneado
+          console.log("🛒 Ejecutando agregarProductoAlCarrito automáticamente...")
+          await agregarProductoAlCarrito(firstCode.rawValue, 1)
         }
         // Si no confirma, el escáner sigue activo para continuar escaneando
       } else {
