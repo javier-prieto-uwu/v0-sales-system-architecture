@@ -541,15 +541,22 @@ export function PuntoVenta() {
       
       if (firstCode && firstCode.rawValue) {
         // Mostrar confirmación con el código escaneado
-        const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al SKU?`)
+        const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al campo SKU?`)
         
         if (confirmar) {
-          console.log("✅ Usuario confirmó, agregando al carrito...")
+          console.log("✅ Usuario confirmó, agregando al campo SKU...")
+          
+          // Agregar el código escaneado al campo SKU
+          setSkuInput(firstCode.rawValue)
+          
+          // Desactivar el escáner
           desactivarEscaner()
           
-          // Agregar automáticamente al carrito con el código escaneado
-          console.log("🛒 Ejecutando agregarProductoAlCarrito automáticamente...")
-          await agregarProductoAlCarrito(firstCode.rawValue, 1)
+          // Mostrar mensaje de éxito
+          setSuccessMessage(`Código ${firstCode.rawValue} agregado al campo SKU`)
+          setTimeout(() => setSuccessMessage(""), 3000)
+          
+          console.log("📝 Código agregado al campo SKU:", firstCode.rawValue)
         }
         // Si no confirma, el escáner sigue activo para continuar escaneando
       } else {
