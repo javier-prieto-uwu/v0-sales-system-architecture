@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,11 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { vendedores, productos, equipos, inventarioProductos, inventarioEquipos } from "@/lib/data"
 import type { Tienda, MetodoPago, TipoTarjeta, ItemCarrito, Cliente } from "@/lib/types"
-import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera, Circle } from "lucide-react"
+import { Trash2, ShoppingCart, Plus, Users, ChevronDown, Camera, X } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import { formatCurrency } from "@/lib/utils"
-import { useBarcodeScanner } from "@/lib/use-barcode-scanner"
-import { obtenerVendedoresMCP, crearVendedorMCP, eliminarVendedorMCP } from "@/lib/supabase-mcp"
+
+// Importar el escáner de forma dinámica para evitar problemas de SSR
+const Scanner = dynamic(
+  () => import('@yudiel/react-qr-scanner').then((mod) => mod.Scanner),
+  { ssr: false }
+)
 
 export function PuntoVenta() {
   const [tiendaVenta, setTiendaVenta] = useState<Tienda>("Cancún")
@@ -50,58 +55,49 @@ export function PuntoVenta() {
   
   // Estado para prevenir ventas duplicadas
   const [procesandoVenta, setProcesandoVenta] = useState(false)
-  
-  // Hook para escáner de código de barras
-  const {
-    videoRef,
-    isScanning,
-    error,
-    startScanning,
-    stopScanning,
-    clearError
-  } = useBarcodeScanner((codigo: string) => {
-    console.log('Código escaneado:', codigo);
-    
-    // Limpiar mensajes anteriores
-    setErrorMessage("");
-    setSuccessMessage("");
-    
-    // Cuando se escanea un código, agregarlo al SKU input
-    setSkuInput(codigo);
-    
-    // Mostrar feedback inmediato
-    setSuccessMessage(`Código escaneado: ${codigo} - Presiona "Agregar" para continuar`);
-    
-    // NO pausar el escáner - mantener la cámara activa para escaneos continuos
-    // stopScanning(); // Comentado para mantener cámara activa
-  })
 
-  const vendedoresFiltrados = vendedoresList.filter((v) => v.tienda === tiendaVenta)
+  // Estados para el escáner de códigos de barras
+  const [mostrarEscaner, setMostrarEscaner] = useState(false)
+  const [escanerActivo, setEscanerActivo] = useState(false)
 
-  // Cargar vendedores desde MCP
+  const vendedoresFiltrados = vendedoresList.filter((v) => v.activo && v.tienda === tiendaVenta)
+
+  // Cargar vendedores desde la base de datos
   useEffect(() => {
     const cargarVendedores = async () => {
       setLoading(true)
       setErrorMessage("")
       
       try {
-        // Cargar vendedores usando MCP
-        const vendedoresMCP = await obtenerVendedoresMCP()
-        
-        // Filtrar por tienda
-        const vendedoresFiltradosPorTienda = vendedoresMCP.filter(v => v.tienda === tiendaVenta)
-        
-        setVendedoresList(vendedoresFiltradosPorTienda)
-        
-        if (vendedoresFiltradosPorTienda.length === 0) {
-          setErrorMessage("No se encontraron vendedores para esta tienda. Usando datos locales.")
-          setVendedoresList(vendedores.filter(v => v.tienda === tiendaVenta))
+        // Intentar cargar desde la base de datos
+        const { data, error } = await supabase
+          .from("vendedores")
+          .select("*")
+          .eq("activo", true)
+          .eq("tienda", tiendaVenta)
+          .order("nombre", { ascending: true })
+
+        if (error) {
+          console.error("Error cargando vendedores:", error.message)
+          if (error.message.includes("table") && error.message.includes("vendedores")) {
+            setErrorMessage("La tabla 'vendedores' no existe en Supabase. Consulta SUPABASE_SETUP.md para configurar la base de datos.")
+          } else {
+            setErrorMessage(`Error cargando vendedores: ${error.message}. Usando datos locales.`)
+          }
+          // Usar datos hardcodeados como fallback
+          setVendedoresList(vendedores)
+        } else {
+          setVendedoresList(data || [])
+          if (data && data.length === 0) {
+            setErrorMessage("No se encontraron vendedores en la base de datos. Usando datos locales.")
+            setVendedoresList(vendedores)
+          }
         }
       } catch (error) {
-        console.error("Error cargando vendedores desde MCP:", error)
-        setErrorMessage("Error cargando vendedores desde MCP. Usando datos locales.")
+        console.error("Error conectando con la base de datos:", error)
+        setErrorMessage("Error de conexión con Supabase. Usando datos locales. Verifica tu configuración.")
         // Usar datos hardcodeados como fallback
-        setVendedoresList(vendedores.filter(v => v.tienda === tiendaVenta))
+        setVendedoresList(vendedores)
       }
       setLoading(false)
     }
@@ -143,18 +139,36 @@ export function PuntoVenta() {
     setSuccessMessage("")
     
     try {
-      // Crear vendedor usando MCP
-      const nuevoVendedor = await crearVendedorMCP(nuevoVendedorNombre.trim(), tiendaVenta)
-      
-      // Actualizar la lista local
-      setVendedoresList([...vendedoresList, nuevoVendedor])
-      setNuevoVendedorNombre("")
-      setSuccessMessage("Vendedor creado exitosamente")
-      // Limpiar mensaje después de 3 segundos
-      setTimeout(() => setSuccessMessage(""), 3000)
+      const { data, error } = await supabase
+        .from("vendedores")
+        .insert([
+          {
+            nombre: nuevoVendedorNombre.trim(),
+            email: `${nuevoVendedorNombre.trim().toLowerCase().replace(/\s+/g, '.')}@empresa.com`,
+            tienda: tiendaVenta,
+            activo: true,
+          },
+        ])
+        .select()
+
+      if (error) {
+        console.error("Error creando vendedor:", error.message)
+        if (error.message.includes("table") && error.message.includes("vendedores")) {
+          setErrorMessage("La tabla 'vendedores' no existe en Supabase. Por favor, consulta SUPABASE_SETUP.md para configurar la base de datos.")
+        } else {
+          setErrorMessage(`Error al crear el vendedor: ${error.message}`)
+        }
+      } else {
+        // Actualizar la lista local
+        setVendedoresList([...vendedoresList, ...(data || [])])
+        setNuevoVendedorNombre("")
+        setSuccessMessage("Vendedor creado exitosamente")
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => setSuccessMessage(""), 3000)
+      }
     } catch (error) {
-      console.error("Error creando vendedor con MCP:", error)
-      setErrorMessage("Error al crear el vendedor con MCP. Verifica la configuración.")
+      console.error("Error conectando con la base de datos:", error)
+      setErrorMessage("Error de conexión con la base de datos. Verifica tu configuración de Supabase.")
     }
     setLoading(false)
   }
@@ -170,21 +184,33 @@ export function PuntoVenta() {
     setSuccessMessage("")
     
     try {
-      // Eliminar vendedor usando MCP
-      await eliminarVendedorMCP(vendedorId)
-      
-      // Actualizar la lista local
-      setVendedoresList(vendedoresList.filter((v) => v.id !== vendedorId))
-      // Si el vendedor eliminado estaba seleccionado, limpiar la selección
-      if (vendedorSeleccionado === vendedorNombre) {
-        setVendedorSeleccionado("")
+      // Intentar eliminar de la base de datos
+      const { error } = await supabase
+        .from("vendedores")
+        .delete()
+        .eq("id", vendedorId)
+
+      if (error) {
+        console.error("Error eliminando vendedor:", error.message)
+        if (error.message.includes("table") && error.message.includes("vendedores")) {
+          setErrorMessage("La tabla 'vendedores' no existe en Supabase. Por favor, consulta SUPABASE_SETUP.md para configurar la base de datos.")
+        } else {
+          setErrorMessage(`Error al eliminar el vendedor: ${error.message}`)
+        }
+      } else {
+        // Actualizar la lista local
+        setVendedoresList(vendedoresList.filter((v) => v.id !== vendedorId))
+        // Si el vendedor eliminado estaba seleccionado, limpiar la selección
+        if (vendedorSeleccionado === vendedorNombre) {
+          setVendedorSeleccionado("")
+        }
+        setSuccessMessage("Vendedor eliminado exitosamente")
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => setSuccessMessage(""), 3000)
       }
-      setSuccessMessage("Vendedor eliminado exitosamente")
-      // Limpiar mensaje después de 3 segundos
-      setTimeout(() => setSuccessMessage(""), 3000)
     } catch (error) {
-      console.error("Error eliminando vendedor con MCP:", error)
-      setErrorMessage("Error al eliminar el vendedor con MCP. Verifica la configuración.")
+      console.error("Error conectando con la base de datos:", error)
+      setErrorMessage("Error de conexión con la base de datos. Verifica tu configuración de Supabase.")
     }
     setLoading(false)
   }
@@ -340,8 +366,6 @@ export function PuntoVenta() {
     setLoading(false)
   }
 
-
-
   const buscarProducto = async (sku: string) => {
     try {
       // Buscar en refacciones
@@ -477,6 +501,43 @@ export function PuntoVenta() {
     }
     
     setLoading(false)
+  }
+
+  // Funciones para el escáner de códigos de barras
+  const activarEscaner = () => {
+    setMostrarEscaner(true)
+    setEscanerActivo(true)
+    setErrorMessage("")
+  }
+
+  const desactivarEscaner = () => {
+    setMostrarEscaner(false)
+    setEscanerActivo(false)
+  }
+
+  const manejarEscaneo = (result: any) => {
+    if (result && result.text) {
+      // Autoescribir el código escaneado en el campo SKU
+      setSkuInput(result.text)
+      setSuccessMessage(`Código escaneado: ${result.text}`)
+      
+      // Cerrar el escáner automáticamente después del escaneo
+      desactivarEscaner()
+      
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setSuccessMessage(""), 3000)
+    }
+  }
+
+  const manejarErrorEscaner = (error: any) => {
+    console.error("Error del escáner:", error)
+    if (error?.name === 'NotAllowedError') {
+      setErrorMessage("Acceso a la cámara denegado. Por favor, permite el acceso a la cámara para usar el escáner.")
+    } else if (error?.name === 'NotFoundError') {
+      setErrorMessage("No se encontró ninguna cámara disponible.")
+    } else {
+      setErrorMessage("Error al acceder a la cámara. Verifica que tu dispositivo tenga cámara y que el navegador tenga permisos.")
+    }
   }
 
   const eliminarDelCarrito = (sku: string) => {
@@ -805,19 +866,6 @@ export function PuntoVenta() {
                     {errorMessage}
                   </div>
                 )}
-                {error && (
-                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-                    {error}
-                    <Button
-                      onClick={clearError}
-                      variant="ghost"
-                      size="sm"
-                      className="ml-2 h-auto p-1 text-red-600 hover:text-red-800"
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                )}
                 {successMessage && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
                     {successMessage}
@@ -840,8 +888,7 @@ export function PuntoVenta() {
           <CardTitle className="text-black">Agregar Productos</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Layout responsive: columna en móvil, fila en desktop */}
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex gap-4">
             <div className="flex-1">
               <Label htmlFor="sku" className="text-black">
                 SKU / Código de Barras
@@ -858,117 +905,111 @@ export function PuntoVenta() {
                     }
                   }}
                   placeholder="Escanear o escribir SKU"
-                  className="bg-white border-gray-300 text-black placeholder:text-gray-400 text-base"
+                  className="bg-white border-gray-300 text-black placeholder:text-gray-400 flex-1"
                 />
                 <Button
-                  onClick={() => {
-                    console.log('Botón de cámara clickeado, isScanning:', isScanning);
-                    if (isScanning) {
-                      console.log('Llamando stopScanning');
-                      stopScanning();
-                    } else {
-                      console.log('Llamando startScanning');
-                      startScanning();
-                    }
-                  }}
-                  variant={isScanning ? "destructive" : "outline"}
-                  className={`flex items-center gap-1 px-3 py-2 min-w-[80px] ${
-                    isScanning 
-                      ? "bg-red-600 hover:bg-red-700 text-white" 
-                      : "border-gray-300 hover:bg-gray-50"
-                  }`}
-                  title={isScanning ? "Detener cámara" : "Iniciar cámara"}
+                  onClick={activarEscaner}
+                  variant="outline"
+                  size="icon"
+                  className="bg-white border-gray-300 text-black hover:bg-gray-50"
+                  title="Activar escáner de códigos de barras"
                 >
                   <Camera className="h-4 w-4" />
-                  {isScanning ? (
-                    <>
-                      <Circle className="h-3 w-3 fill-current animate-pulse" />
-                      <span className="text-xs sm:text-sm hidden sm:inline">ACTIVA</span>
-                    </>
-                  ) : (
-                    <span className="text-xs sm:text-sm hidden sm:inline">Cámara</span>
-                  )}
                 </Button>
               </div>
             </div>
-            
-            {/* Cantidad y botón agregar en una fila en móvil */}
-            <div className="flex gap-2 sm:gap-4">
-              <div className="w-20 sm:w-24">
-                <Label htmlFor="cantidad" className="text-black">
-                  Cantidad
-                </Label>
-                <Input
-                  id="cantidad"
-                  type="number"
-                  min="1"
-                  value={cantidadInput}
-                  onChange={(e) => setCantidadInput(e.target.value)}
-                  className="bg-white border-gray-300 text-black text-base"
-                />
-              </div>
-              <div className="flex items-end flex-1 sm:flex-initial">
-                <Button 
-                  onClick={agregarAlCarrito} 
-                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto px-4 py-2"
-                >
-                  <span className="text-sm sm:text-base">Agregar</span>
-                </Button>
-              </div>
+            <div className="w-24">
+              <Label htmlFor="cantidad" className="text-black">
+                Cantidad
+              </Label>
+              <Input
+                id="cantidad"
+                type="number"
+                min="1"
+                value={cantidadInput}
+                onChange={(e) => setCantidadInput(e.target.value)}
+                className="bg-white border-gray-300 text-black"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={agregarAlCarrito} className="bg-blue-600 hover:bg-blue-700 text-white">
+                Agregar
+              </Button>
             </div>
           </div>
-          
-        </CardContent>
-      </Card>
 
-      {/* Elemento de video para la cámara - Siempre en DOM pero solo visible cuando se escanea */}
-      <div className={`w-full max-w-md mx-auto mb-4 relative ${isScanning ? 'block' : 'hidden'}`}>
-        <div className="relative rounded-lg overflow-hidden border-2 border-green-500 bg-black">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            webkit-playsinline="true"
-            controls={false}
-            preload="metadata"
-            className="w-full h-auto object-cover"
-            style={{ 
-              aspectRatio: '4/3', 
-              minHeight: '200px',
-              maxHeight: '400px',
-              backgroundColor: '#000'
-            }}
-            onLoadedMetadata={() => {
-              console.log('📹 Video metadata cargada');
-              if (videoRef.current) {
-                videoRef.current.play().catch(console.error);
-              }
-            }}
-            onCanPlay={() => {
-              console.log('📹 Video listo para reproducir');
-            }}
-            onError={(e) => {
-              console.error('❌ Error en el video:', e);
-            }}
-          />
-          {/* Overlay con instrucciones para móviles */}
-          {isScanning && (
-            <div className="absolute top-2 left-2 right-2 bg-black bg-opacity-70 text-white text-xs p-2 rounded">
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span>Cámara activa - Enfoca el código de barras</span>
+          {/* Modal del escáner de códigos de barras */}
+          {mostrarEscaner && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-black">Escáner de Códigos de Barras</h3>
+                  <Button
+                    onClick={desactivarEscaner}
+                    variant="ghost"
+                    size="icon"
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+                
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Apunta la cámara hacia el código de barras para escanearlo
+                  </p>
+                  
+                  {escanerActivo && (
+                    <div className="relative">
+                      <Scanner
+                        onScan={manejarEscaneo}
+                        onError={manejarErrorEscaner}
+                        constraints={{
+                          facingMode: 'environment' // Usar cámara trasera en móviles
+                        }}
+                        formats={[
+                          'qr_code',
+                          'ean_13',
+                          'ean_8',
+                          'code_128',
+                          'code_39',
+                          'upc_a',
+                          'upc_e',
+                          'codabar',
+                          'itf',
+                          'databar',
+                          'databar_expanded'
+                        ]}
+                        components={{
+                          finder: true  // Mostrar el marco de enfoque
+                        }}
+                        styles={{
+                          container: {
+                            width: '100%',
+                            height: '300px',
+                            borderRadius: '8px',
+                            overflow: 'hidden'
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={desactivarEscaner}
+                    variant="outline"
+                    className="flex-1 bg-white border-gray-300 text-black hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
               </div>
             </div>
           )}
-          {/* Marco de enfoque */}
-          {isScanning && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-3/4 h-1/2 border-2 border-red-500 border-dashed rounded-lg opacity-50"></div>
-            </div>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <Card className="bg-white border-gray-200">
         <CardHeader>
