@@ -505,25 +505,33 @@ export function PuntoVenta() {
 
   // Funciones para el escáner de códigos de barras
   const activarEscaner = () => {
+    console.log("Activando escáner...")
     setMostrarEscaner(true)
     setEscanerActivo(true)
     setErrorMessage("")
   }
 
   const desactivarEscaner = () => {
+    console.log("Desactivando escáner...")
     setMostrarEscaner(false)
     setEscanerActivo(false)
   }
 
-  const manejarEscaneo = (result: any) => {
-    if (result && result.text) {
+  const manejarEscaneo = (detectedCodes: any[]) => {
+    console.log("manejarEscaneo ejecutado con códigos detectados:", detectedCodes)
+    
+    if (detectedCodes && detectedCodes.length > 0) {
+      // Tomar el primer código detectado
+      const firstCode = detectedCodes[0]
+      console.log("Código detectado:", firstCode.rawValue)
+      
       // Mostrar confirmación con el código escaneado
-      const confirmar = window.confirm(`Código escaneado: ${result.text}\n\n¿Deseas agregar este código al SKU?`)
+      const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al SKU?`)
       
       if (confirmar) {
         // Si confirma, agregar el código al SKU y cerrar escáner
-        setSkuInput(result.text)
-        setSuccessMessage(`Código agregado: ${result.text}`)
+        setSkuInput(firstCode.rawValue)
+        setSuccessMessage(`Código agregado: ${firstCode.rawValue}`)
         desactivarEscaner()
         
         // Limpiar mensaje después de 3 segundos
