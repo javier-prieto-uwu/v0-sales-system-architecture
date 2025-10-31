@@ -518,37 +518,53 @@ export function PuntoVenta() {
   }
 
   const manejarEscaneo = (detectedCodes: any[]) => {
-    console.log("manejarEscaneo ejecutado con códigos detectados:", detectedCodes)
+    console.log("🔍 manejarEscaneo ejecutado")
+    console.log("📊 Códigos detectados:", detectedCodes)
+    console.log("📏 Cantidad de códigos:", detectedCodes?.length || 0)
     
-    if (detectedCodes && detectedCodes.length > 0) {
+    if (detectedCodes && Array.isArray(detectedCodes) && detectedCodes.length > 0) {
       // Tomar el primer código detectado
       const firstCode = detectedCodes[0]
-      console.log("Código detectado:", firstCode.rawValue)
+      console.log("✅ Primer código:", firstCode)
+      console.log("📝 Valor del código:", firstCode?.rawValue)
+      console.log("🏷️ Formato del código:", firstCode?.format)
       
-      // Mostrar confirmación con el código escaneado
-      const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al SKU?`)
-      
-      if (confirmar) {
-        // Si confirma, agregar el código al SKU y cerrar escáner
-        setSkuInput(firstCode.rawValue)
-        setSuccessMessage(`Código agregado: ${firstCode.rawValue}`)
-        desactivarEscaner()
+      if (firstCode && firstCode.rawValue) {
+        // Mostrar confirmación con el código escaneado
+        const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al SKU?`)
         
-        // Limpiar mensaje después de 3 segundos
-        setTimeout(() => setSuccessMessage(""), 3000)
+        if (confirmar) {
+          // Si confirma, agregar el código al SKU y cerrar escáner
+          setSkuInput(firstCode.rawValue)
+          setSuccessMessage(`Código agregado: ${firstCode.rawValue}`)
+          desactivarEscaner()
+          
+          // Limpiar mensaje después de 3 segundos
+          setTimeout(() => setSuccessMessage(""), 3000)
+        }
+        // Si no confirma, el escáner sigue activo para continuar escaneando
+      } else {
+        console.log("❌ Código detectado pero sin rawValue válido")
       }
-      // Si no confirma, el escáner sigue activo para continuar escaneando
+    } else {
+      console.log("❌ No se detectaron códigos válidos")
     }
   }
 
   const manejarErrorEscaner = (error: any) => {
-    console.error("Error del escáner:", error)
+    console.error("🚨 Error del escáner:", error)
+    console.error("🔍 Tipo de error:", error?.name)
+    console.error("📝 Mensaje de error:", error?.message)
+    console.error("📊 Error completo:", JSON.stringify(error, null, 2))
+    
     if (error?.name === 'NotAllowedError') {
       setErrorMessage("Acceso a la cámara denegado. Por favor, permite el acceso a la cámara para usar el escáner.")
     } else if (error?.name === 'NotFoundError') {
       setErrorMessage("No se encontró ninguna cámara disponible.")
+    } else if (error?.name === 'NotSupportedError') {
+      setErrorMessage("El escáner de códigos no es compatible con este navegador.")
     } else {
-      setErrorMessage("Error al acceder a la cámara. Verifica que tu dispositivo tenga cámara y que el navegador tenga permisos.")
+      setErrorMessage(`Error al acceder a la cámara: ${error?.message || 'Error desconocido'}`)
     }
   }
 
@@ -970,6 +986,10 @@ export function PuntoVenta() {
                   <p className="text-sm text-gray-600 mb-2">
                     Apunta la cámara hacia el código de barras para escanearlo
                   </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-green-600">Escáner activo - Esperando código...</span>
+                  </div>
                   
                   {escanerActivo && (
                     <div className="relative">
@@ -977,7 +997,9 @@ export function PuntoVenta() {
                         onScan={manejarEscaneo}
                         onError={manejarErrorEscaner}
                         constraints={{
-                          facingMode: 'environment' // Usar cámara trasera en móviles
+                          facingMode: 'environment',
+                          width: { ideal: 1280 },
+                          height: { ideal: 720 }
                         }}
                         formats={[
                           'qr_code',
@@ -986,23 +1008,22 @@ export function PuntoVenta() {
                           'code_128',
                           'code_39',
                           'upc_a',
-                          'upc_e',
-                          'codabar',
-                          'itf',
-                          'databar',
-                          'databar_expanded'
+                          'upc_e'
                         ]}
                         components={{
-                          finder: true  // Mostrar el marco de enfoque
+                          finder: true,
+                          torch: true
                         }}
                         styles={{
                           container: {
                             width: '100%',
-                            height: '300px',
+                            height: '400px',
                             borderRadius: '8px',
                             overflow: 'hidden'
                           }
                         }}
+                        allowMultiple={false}
+                        scanDelay={300}
                       />
                     </div>
                   )}
