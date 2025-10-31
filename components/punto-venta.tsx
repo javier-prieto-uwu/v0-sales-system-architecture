@@ -517,15 +517,19 @@ export function PuntoVenta() {
 
   const manejarEscaneo = (result: any) => {
     if (result && result.text) {
-      // Autoescribir el código escaneado en el campo SKU
-      setSkuInput(result.text)
-      setSuccessMessage(`Código escaneado: ${result.text}`)
+      // Mostrar confirmación con el código escaneado
+      const confirmar = window.confirm(`Código escaneado: ${result.text}\n\n¿Deseas agregar este código al SKU?`)
       
-      // Cerrar el escáner automáticamente después del escaneo
-      desactivarEscaner()
-      
-      // Limpiar mensaje después de 3 segundos
-      setTimeout(() => setSuccessMessage(""), 3000)
+      if (confirmar) {
+        // Si confirma, agregar el código al SKU y cerrar escáner
+        setSkuInput(result.text)
+        setSuccessMessage(`Código agregado: ${result.text}`)
+        desactivarEscaner()
+        
+        // Limpiar mensaje después de 3 segundos
+        setTimeout(() => setSuccessMessage(""), 3000)
+      }
+      // Si no confirma, el escáner sigue activo para continuar escaneando
     }
   }
 
