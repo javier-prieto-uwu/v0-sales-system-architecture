@@ -885,18 +885,18 @@ export function PuntoVenta() {
   const totales = calcularTotales()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-2 sm:p-4 lg:p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-black">Punto de Venta</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-black">Punto de Venta</h1>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="bg-white border-gray-200">
           <CardHeader>
             <CardTitle className="text-black">Seleccionar Tienda</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 onClick={() => {
                   setTiendaVenta("Cancún")
@@ -905,8 +905,8 @@ export function PuntoVenta() {
                 variant={tiendaVenta === "Cancún" ? "default" : "outline"}
                 className={
                   tiendaVenta === "Cancún"
-                    ? "bg-blue-600 hover:bg-blue-700 text-white flex-1"
-                    : "bg-white border-gray-300 text-black hover:bg-gray-50 flex-1"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white flex-1 h-12 text-base"
+                    : "bg-white border-gray-300 text-black hover:bg-gray-50 flex-1 h-12 text-base"
                 }
               >
                 Cancún
@@ -919,8 +919,8 @@ export function PuntoVenta() {
                 variant={tiendaVenta === "Playa del Carmen" ? "default" : "outline"}
                 className={
                   tiendaVenta === "Playa del Carmen"
-                    ? "bg-blue-600 hover:bg-blue-700 text-white flex-1"
-                    : "bg-white border-gray-300 text-black hover:bg-gray-50 flex-1"
+                    ? "bg-blue-600 hover:bg-blue-700 text-white flex-1 h-12 text-base"
+                    : "bg-white border-gray-300 text-black hover:bg-gray-50 flex-1 h-12 text-base"
                 }
               >
                 Playa del Carmen
@@ -1027,9 +1027,9 @@ export function PuntoVenta() {
           <CardTitle className="text-black">Agregar Productos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label htmlFor="sku" className="text-black">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="sku" className="text-black text-base">
                 SKU / Código de Barras
               </Label>
               <div className="flex gap-2">
@@ -1044,52 +1044,56 @@ export function PuntoVenta() {
                     }
                   }}
                   placeholder="Escanear o escribir SKU"
-                  className="bg-white border-gray-300 text-black placeholder:text-gray-400 flex-1"
+                  className="bg-white border-gray-300 text-black placeholder:text-gray-400 flex-1 h-12 text-base"
                 />
                 <Button
                   onClick={activarEscaner}
                   variant="outline"
-                  size="icon"
-                  className="bg-white border-gray-300 text-black hover:bg-gray-50"
+                  className="bg-white border-gray-300 text-black hover:bg-gray-50 h-12 w-12 p-0"
                   title="Activar escáner de códigos de barras"
                 >
-                  <Camera className="h-4 w-4" />
+                  <Camera className="h-5 w-5" />
                 </Button>
               </div>
             </div>
-            <div className="w-24">
-              <Label htmlFor="cantidad" className="text-black">
-                Cantidad
-              </Label>
-              <Input
-                id="cantidad"
-                type="number"
-                min="1"
-                value={cantidadInput}
-                onChange={(e) => setCantidadInput(e.target.value)}
-                className="bg-white border-gray-300 text-black"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={agregarAlCarrito} className="bg-blue-600 hover:bg-blue-700 text-white">
-                Agregar
-              </Button>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="cantidad" className="text-black text-base">
+                  Cantidad
+                </Label>
+                <Input
+                  id="cantidad"
+                  type="number"
+                  min="1"
+                  value={cantidadInput}
+                  onChange={(e) => setCantidadInput(e.target.value)}
+                  className="bg-white border-gray-300 text-black h-12 text-base"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button 
+                  onClick={agregarAlCarrito} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white h-12 px-8 text-base w-full sm:w-auto"
+                >
+                  Agregar
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Modal del escáner de códigos de barras */}
           {mostrarEscaner && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-black">Escáner de Códigos de Barras</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-black">Escáner de Códigos</h3>
                   <Button
                     onClick={desactivarEscaner}
                     variant="ghost"
-                    size="icon"
-                    className="text-gray-500 hover:text-gray-700"
+                    className="text-gray-500 hover:text-gray-700 h-10 w-10 p-0"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-6 w-6" />
                   </Button>
                 </div>
                 
@@ -1175,74 +1179,136 @@ export function PuntoVenta() {
           {carrito.length === 0 ? (
             <div className="p-8 text-center text-gray-500">El carrito está vacío</div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-200 hover:bg-gray-50">
-                    <TableHead className="text-gray-700">SKU</TableHead>
-                    <TableHead className="text-gray-700">Producto</TableHead>
-                    <TableHead className="text-gray-700">Tipo</TableHead>
-                    <TableHead className="text-gray-700 text-right">Cantidad</TableHead>
-                    <TableHead className="text-gray-700 text-right">Costo Unit.</TableHead>
-                    <TableHead className="text-gray-700 text-right">Precio Unit.</TableHead>
-                    <TableHead className="text-gray-700 text-right">Utilidad Unit.</TableHead>
-                    <TableHead className="text-gray-700 text-right">Total</TableHead>
-                    <TableHead className="text-gray-700 text-center">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <>
+              {/* Vista móvil */}
+              <div className="block sm:hidden">
+                <div className="space-y-3 p-4">
                   {carrito.map((item) => (
-                    <TableRow key={item.sku} className="border-gray-200 hover:bg-gray-50">
-                      <TableCell className="font-mono text-blue-600">{item.sku}</TableCell>
-                      <TableCell className="text-black font-medium">{item.nombre}</TableCell>
-                      <TableCell className="text-gray-600 capitalize">{item.tipo}</TableCell>
-                      <TableCell className="text-right text-black">{item.cantidad}</TableCell>
-                      <TableCell className="text-right text-gray-600">{formatCurrency(item.costo)}</TableCell>
-                      <TableCell className="text-right text-black">{formatCurrency(item.precio)}</TableCell>
-                      <TableCell className="text-right text-green-600">{formatCurrency(item.utilidad)}</TableCell>
-                      <TableCell className="text-right text-black font-semibold">
-                        {formatCurrency(item.precio * item.cantidad)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-center">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => eliminarDelCarrito(item.sku)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                    <div key={item.sku} className="bg-gray-50 rounded-lg p-4 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-medium text-black text-base">{item.nombre}</div>
+                          <div className="text-sm text-gray-600">SKU: {item.sku}</div>
+                          <div className="text-sm text-gray-600 capitalize">{item.tipo}</div>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => eliminarDelCarrito(item.sku)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-600">Cantidad: </span>
+                          <span className="text-black font-medium">{item.cantidad}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Precio: </span>
+                          <span className="text-black font-medium">{formatCurrency(item.precio)}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Utilidad: </span>
+                          <span className="text-green-600 font-medium">{formatCurrency(item.utilidad)}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Total: </span>
+                          <span className="text-black font-semibold">{formatCurrency(item.precio * item.cantidad)}</span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                  <TableRow className="border-gray-200 bg-gray-50">
-                    <TableCell colSpan={7} className="text-right font-bold text-black">
-                      Totales:
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-black">{formatCurrency(totales.ventaTotal)}</TableCell>
-                    <TableCell />
-                  </TableRow>
-                  <TableRow className="border-gray-200 bg-gray-50">
-                    <TableCell colSpan={7} className="text-right text-gray-600">
-                      Costo Total:
-                    </TableCell>
-                    <TableCell className="text-right text-gray-600">{formatCurrency(totales.costoTotal)}</TableCell>
-                    <TableCell />
-                  </TableRow>
-                  <TableRow className="border-gray-200 bg-gray-50">
-                    <TableCell colSpan={7} className="text-right text-gray-600">
-                      Utilidad Total:
-                    </TableCell>
-                    <TableCell className="text-right text-green-600 font-semibold">
-                      {formatCurrency(totales.utilidadTotal)}
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                  
+                  {/* Totales móvil */}
+                  <div className="bg-blue-50 rounded-lg p-4 space-y-2 border-t-2 border-blue-200">
+                    <div className="flex justify-between text-base">
+                      <span className="font-bold text-black">Total Venta:</span>
+                      <span className="font-bold text-black">{formatCurrency(totales.ventaTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Costo Total:</span>
+                      <span className="text-gray-600">{formatCurrency(totales.costoTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Utilidad Total:</span>
+                      <span className="text-green-600 font-semibold">{formatCurrency(totales.utilidadTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vista desktop */}
+              <div className="hidden sm:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-200 hover:bg-gray-50">
+                      <TableHead className="text-gray-700">SKU</TableHead>
+                      <TableHead className="text-gray-700">Producto</TableHead>
+                      <TableHead className="text-gray-700">Tipo</TableHead>
+                      <TableHead className="text-gray-700 text-right">Cantidad</TableHead>
+                      <TableHead className="text-gray-700 text-right">Costo Unit.</TableHead>
+                      <TableHead className="text-gray-700 text-right">Precio Unit.</TableHead>
+                      <TableHead className="text-gray-700 text-right">Utilidad Unit.</TableHead>
+                      <TableHead className="text-gray-700 text-right">Total</TableHead>
+                      <TableHead className="text-gray-700 text-center">Acción</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {carrito.map((item) => (
+                      <TableRow key={item.sku} className="border-gray-200 hover:bg-gray-50">
+                        <TableCell className="font-mono text-blue-600">{item.sku}</TableCell>
+                        <TableCell className="text-black font-medium">{item.nombre}</TableCell>
+                        <TableCell className="text-gray-600 capitalize">{item.tipo}</TableCell>
+                        <TableCell className="text-right text-black">{item.cantidad}</TableCell>
+                        <TableCell className="text-right text-gray-600">{formatCurrency(item.costo)}</TableCell>
+                        <TableCell className="text-right text-black">{formatCurrency(item.precio)}</TableCell>
+                        <TableCell className="text-right text-green-600">{formatCurrency(item.utilidad)}</TableCell>
+                        <TableCell className="text-right text-black font-semibold">
+                          {formatCurrency(item.precio * item.cantidad)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => eliminarDelCarrito(item.sku)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="border-gray-200 bg-gray-50">
+                      <TableCell colSpan={7} className="text-right font-bold text-black">
+                        Totales:
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-black">{formatCurrency(totales.ventaTotal)}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                    <TableRow className="border-gray-200 bg-gray-50">
+                      <TableCell colSpan={7} className="text-right text-gray-600">
+                        Costo Total:
+                      </TableCell>
+                      <TableCell className="text-right text-gray-600">{formatCurrency(totales.costoTotal)}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                    <TableRow className="border-gray-200 bg-gray-50">
+                      <TableCell colSpan={7} className="text-right text-gray-600">
+                        Utilidad Total:
+                      </TableCell>
+                      <TableCell className="text-right text-green-600 font-semibold">
+                        {formatCurrency(totales.utilidadTotal)}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -1514,14 +1580,25 @@ export function PuntoVenta() {
             )}
           </div>
 
-          <div className="pt-4">
-            <Button 
-              onClick={registrarVenta} 
-              disabled={procesandoVenta}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg py-6 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {procesandoVenta ? "Procesando..." : "Registrar Venta"}
-            </Button>
+          <div className="pt-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                onClick={() => setCarrito([])}
+                disabled={carrito.length === 0 || procesandoVenta}
+                variant="outline"
+                className="w-full sm:w-auto bg-white border-gray-300 text-gray-700 hover:bg-gray-50 h-12 text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpiar Carrito
+              </Button>
+              <Button 
+                onClick={registrarVenta} 
+                disabled={procesandoVenta || carrito.length === 0}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-lg h-12 sm:py-6 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {procesandoVenta ? "Procesando..." : "Registrar Venta"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
