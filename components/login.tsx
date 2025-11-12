@@ -6,7 +6,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { supabase } from "@/lib/supabaseClient"
+import { supabase, SUPABASE_IS_CONFIGURED } from "@/lib/supabaseClient"
 
 interface LoginProps {
   onLogin: () => void
@@ -40,6 +40,13 @@ export function Login({ onLogin }: LoginProps) {
 
     if (!email || !pwd) {
       setError("Ingresa usuario y contraseña")
+      setLoading(false)
+      return
+    }
+
+    // Validación de configuración para evitar llamadas a placeholder en producción
+    if (!SUPABASE_IS_CONFIGURED) {
+      setError("Variables de entorno de Supabase faltantes en el deployment. Configura NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY en Vercel.")
       setLoading(false)
       return
     }

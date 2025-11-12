@@ -1,9 +1,13 @@
 import { createClient } from "@supabase/supabase-js"
 
-const isDev = process.env.NODE_ENV !== "production"
+// Usar fallback seguro SIEMPRE para evitar fallos en build/prerender
+const FALLBACK_URL = "https://placeholder.supabase.co"
+const FALLBACK_KEY = "placeholder-key"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || (isDev ? "https://placeholder.supabase.co" : "")
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (isDev ? "placeholder-key" : "")
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_KEY
 
-// No lanzar error en build/prerender; en producción, asegúrate de setear las env vars en Vercel
+export const SUPABASE_IS_CONFIGURED =
+  supabaseUrl !== FALLBACK_URL && supabaseKey !== FALLBACK_KEY
+
 export const supabase = createClient(supabaseUrl, supabaseKey)
