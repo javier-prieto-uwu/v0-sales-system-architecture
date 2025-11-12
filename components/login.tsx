@@ -2,10 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { supabase } from "@/lib/supabaseClient"
 
 interface LoginProps {
   onLogin: () => void
@@ -14,10 +15,49 @@ interface LoginProps {
 export function Login({ onLogin }: LoginProps) {
   const [usuario, setUsuario] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Si ya hay una sesión activa, entrar directamente
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        onLogin()
+      }
+    }
+    checkSession()
+  }, [onLogin])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onLogin()
+    setError(null)
+    setLoading(true)
+
+    // Interpretar "usuario" como email (las cuentas las dan administradores)
+    const email = usuario.trim()
+    const pwd = password
+
+    if (!email || !pwd) {
+      setError("Ingresa usuario y contraseña")
+      setLoading(false)
+      return
+    }
+
+    // Autenticación con Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pwd })
+    if (error) {
+      setError(error.message || "Error al iniciar sesión")
+      setLoading(false)
+      return
+    }
+
+    if (data.session) {
+      onLogin()
+    } else {
+      setError("No se pudo iniciar sesión. Intenta nuevamente.")
+    }
+    setLoading(false)
   }
 
   return (
@@ -60,8 +100,13 @@ export function Login({ onLogin }: LoginProps) {
                 className="bg-white border-gray-300 text-black placeholder:text-gray-400"
               />
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-              Iniciar Sesión
+            {error && (
+              <div className="text-red-600 text-sm" role="alert">
+                {error}
+              </div>
+            )}
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={loading}>
+              {loading ? "Ingresando..." : "Iniciar Sesión"}
             </Button>
           </form>
         </CardContent>
