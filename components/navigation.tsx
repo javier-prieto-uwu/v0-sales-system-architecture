@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Package, Cpu, Plus, ShoppingCart, BarChart3, Tag, Menu, X } from "lucide-react"
+import { Package, Cpu, Plus, ShoppingCart, BarChart3, Tag, Menu, X, Camera } from "lucide-react"
 
 interface NavigationProps {
   activeSection: string
@@ -16,6 +16,7 @@ export function Navigation({ activeSection, onNavigate }: NavigationProps) {
     { id: "equipos", label: "Equipos", icon: Cpu },
     { id: "agregar", label: "Agregar", icon: Plus },
     { id: "venta", label: "Punto de Venta", icon: ShoppingCart },
+    { id: "hacerinventario", label: "Hacer Inventario", icon: Camera },
     { id: "historial", label: "Historial", icon: BarChart3 },
     { id: "etiquetas", label: "Etiquetas", icon: Tag },
   ]

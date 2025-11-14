@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Tecnologia, Modelo, Equipo, InventarioItem } from "@/lib/types"
@@ -195,7 +196,26 @@ export function InventarioEquipos() {
             <CardTitle className="text-black">Filtro por Tecnología</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2 flex-wrap">
+            {/* Select compacto para móvil */}
+            <div className="md:hidden mb-3">
+              <Select
+                value={String(tecnologiaFiltro)}
+                onValueChange={(val) => setTecnologiaFiltro(val as Tecnologia | "Todas")}
+              >
+                <SelectTrigger className="w-full" aria-label="Seleccionar tecnología">
+                  <SelectValue placeholder="Selecciona tecnología" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tecnologias.map((tec) => (
+                    <SelectItem key={tec.id} value={String(tec.id)}>
+                      {tec.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Chips para tablet/desktop */}
+            <div className="hidden md:flex md:flex-wrap gap-2 overflow-x-auto whitespace-nowrap -mx-2 px-2">
               {tecnologias.map((tec) => (
                 <Button
                   key={tec.id}
@@ -223,7 +243,26 @@ export function InventarioEquipos() {
             <CardTitle className="text-black">Filtro por Modelo</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2 flex-wrap">
+            {/* Select compacto para móvil */}
+            <div className="md:hidden mb-3">
+              <Select
+                value={String(modeloFiltro)}
+                onValueChange={(val) => setModeloFiltro(val as Modelo | "Todos")}
+              >
+                <SelectTrigger className="w-full" aria-label="Seleccionar modelo">
+                  <SelectValue placeholder="Selecciona modelo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modelos.map((mod) => (
+                    <SelectItem key={mod.id} value={String(mod.id)}>
+                      {mod.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Chips para tablet/desktop */}
+            <div className="hidden md:flex md:flex-wrap gap-2 overflow-x-auto whitespace-nowrap -mx-2 px-2">
               {modelos.map((mod) => (
                 <Button
                   key={mod.id}
@@ -249,7 +288,7 @@ export function InventarioEquipos() {
 
       <Card className="bg-white border-gray-200">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-200 hover:bg-gray-50">
@@ -394,6 +433,120 @@ export function InventarioEquipos() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="block md:hidden space-y-3">
+        {equiposFiltrados.map((equipo) => {
+          const inventario = getInventario(equipo.id)
+          const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
+          const utilidadCalc = equipo.precio - equipo.costo
+
+          return (
+            <Card key={equipo.id} className="bg-white border-gray-200">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-mono text-blue-600">{equipo.sku}</div>
+                    <div className="text-base font-semibold text-black">{equipo.nombre}</div>
+                    <div className="text-xs text-gray-600">{equipo.modelo} • {equipo.tecnologia}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    {editingId === equipo.id ? (
+                      <>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => saveEdit(equipo.id)}>
+                          Guardar
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-gray-700 border-gray-300 hover:bg-gray-50" onClick={cancelEdit}>
+                          Cancelar
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => startEdit(equipo)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deleteEquipo(equipo.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Cancún</div>
+                    {editingId === equipo.id ? (
+                      <Input
+                        type="number"
+                        value={editValues.cantidadCancun}
+                        onChange={(e) => setEditValues((v) => ({ ...v, cantidadCancun: Number.parseInt(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-black font-medium">{inventario?.cantidadCancun || 0}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Playa</div>
+                    {editingId === equipo.id ? (
+                      <Input
+                        type="number"
+                        value={editValues.cantidadPlaya}
+                        onChange={(e) => setEditValues((v) => ({ ...v, cantidadPlaya: Number.parseInt(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-black font-medium">{inventario?.cantidadPlaya || 0}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Total</div>
+                    <div className="text-sm text-black font-semibold">{total}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Utilidad</div>
+                    <div className="text-sm text-green-600 font-semibold">{formatCurrency(utilidadCalc)}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Costo</div>
+                    {editingId === equipo.id ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValues.costo}
+                        onChange={(e) => setEditValues((v) => ({ ...v, costo: Number.parseFloat(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-700">{formatCurrency(equipo.costo)}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Precio</div>
+                    {editingId === equipo.id ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValues.precio}
+                        onChange={(e) => setEditValues((v) => ({ ...v, precio: Number.parseFloat(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-black font-medium">{formatCurrency(equipo.precio)}</div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
     </div>
   )
 }

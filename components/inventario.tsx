@@ -163,7 +163,8 @@ export function Inventario() {
           <CardTitle className="text-black">Filtros por Categoría</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2 flex-wrap">
+          {/* Contenedor de filtros con scroll horizontal en móvil */}
+          <div className="flex md:flex-wrap gap-2 overflow-x-auto whitespace-nowrap -mx-2 px-2">
             {categorias.map((cat) => (
               <Button
                 key={cat}
@@ -182,9 +183,10 @@ export function Inventario() {
         </CardContent>
       </Card>
 
+      {/* Vista de escritorio: tabla completa */}
       <Card className="bg-white border-gray-200">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-200 hover:bg-gray-50">
@@ -323,6 +325,123 @@ export function Inventario() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Vista móvil: tarjetas compactas con edición inline */}
+      <div className="block md:hidden space-y-3">
+        {productosFiltrados.map((producto) => {
+          const inventario = getInventario(producto.id)
+          const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
+          const utilidadCalc = producto.precio - producto.costo
+
+          return (
+            <Card key={producto.id} className="bg-white border-gray-200">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-mono text-blue-600">{producto.sku}</div>
+                    <div className="text-base font-semibold text-black">{producto.nombre}</div>
+                    <div className="text-xs text-gray-600">{producto.categoria}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    {editingId === producto.id ? (
+                      <>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => saveEdit(producto.id)}>
+                          Guardar
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-gray-700 border-gray-300 hover:bg-gray-50" onClick={cancelEdit}>
+                          Cancelar
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => startEdit(producto)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deleteProducto(producto.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cantidades */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Cancún</div>
+                    {editingId === producto.id ? (
+                      <Input
+                        type="number"
+                        value={editValues.cantidadCancun}
+                        onChange={(e) => setEditValues((v) => ({ ...v, cantidadCancun: Number.parseInt(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-black font-medium">{inventario?.cantidadCancun || 0}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Playa</div>
+                    {editingId === producto.id ? (
+                      <Input
+                        type="number"
+                        value={editValues.cantidadPlaya}
+                        onChange={(e) => setEditValues((v) => ({ ...v, cantidadPlaya: Number.parseInt(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-black font-medium">{inventario?.cantidadPlaya || 0}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Totales y precios */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Total</div>
+                    <div className="text-sm text-black font-semibold">{total}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Utilidad</div>
+                    <div className="text-sm text-green-600 font-semibold">{formatCurrency(utilidadCalc)}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-600">Costo</div>
+                    {editingId === producto.id ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValues.costo}
+                        onChange={(e) => setEditValues((v) => ({ ...v, costo: Number.parseFloat(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-gray-700">{formatCurrency(producto.costo)}</div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-600">Precio</div>
+                    {editingId === producto.id ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValues.precio}
+                        onChange={(e) => setEditValues((v) => ({ ...v, precio: Number.parseFloat(e.target.value || "0") }))}
+                        className="bg-white border-gray-300 text-black"
+                      />
+                    ) : (
+                      <div className="text-sm text-black font-medium">{formatCurrency(producto.precio)}</div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
     </div>
   )
 }

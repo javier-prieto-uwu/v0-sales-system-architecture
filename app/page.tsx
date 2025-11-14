@@ -9,6 +9,7 @@ import { AgregarProducto } from "@/components/agregar-producto"
 import { PuntoVenta } from "@/components/punto-venta"
 import { HistorialVentas } from "@/components/historial-ventas"
 import { GeneradorEtiquetas } from "@/components/generador-etiquetas"
+import { HacerInventario } from "@/components/hacerinventario"
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -26,6 +27,7 @@ export default function Home() {
         {activeSection === "equipos" && <InventarioEquipos />}
         {activeSection === "agregar" && <AgregarProducto />}
         {activeSection === "venta" && <PuntoVenta />}
+        {activeSection === "hacerinventario" && <HacerInventario />}
         {activeSection === "historial" && <HistorialVentas />}
         {activeSection === "etiquetas" && <GeneradorEtiquetas />}
       </main>
