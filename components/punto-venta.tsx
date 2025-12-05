@@ -60,6 +60,8 @@ export function PuntoVenta() {
   const [mostrarEscaner, setMostrarEscaner] = useState(false)
   const [escanerActivo, setEscanerActivo] = useState(false)
   const [esMobile, setEsMobile] = useState(false)
+  // Objetivo del escaneo: campo de serie por línea de carrito (usando índice)
+  const [scanTarget, setScanTarget] = useState<{ index: number, campo: 'numeroEvaporador' | 'numeroCondensador' } | null>(null)
 
   const vendedoresFiltrados = vendedoresList.filter((v) => v.activo && v.tienda === tiendaVenta)
 
@@ -496,11 +498,24 @@ export function PuntoVenta() {
         return false
       }
 
-      const itemExistente = carrito.find((c) => c.sku === item.sku)
-      if (itemExistente) {
-        setCarrito(carrito.map((c) => (c.sku === item.sku ? { ...c, cantidad: c.cantidad + cantidad } : c)))
+      if (item.tipo === "equipo") {
+        // Para equipos: crear líneas individuales por unidad para capturar seriales por equipo
+        const unidades = Math.max(1, cantidad)
+        const nuevosEquipos = Array.from({ length: unidades }, () => ({
+          ...item,
+          cantidad: 1,
+          numeroEvaporador: "",
+          numeroCondensador: "",
+        }))
+        setCarrito([...carrito, ...nuevosEquipos])
       } else {
-        setCarrito([...carrito, { ...item, cantidad }])
+        // Para refacciones/productos: consolidar por SKU incrementando cantidad
+        const itemExistente = carrito.find((c) => c.sku === item.sku && c.tipo === "producto")
+        if (itemExistente) {
+          setCarrito(carrito.map((c) => (c.sku === item.sku && c.tipo === "producto" ? { ...c, cantidad: c.cantidad + cantidad } : c)))
+        } else {
+          setCarrito([...carrito, { ...item, cantidad }])
+        }
       }
 
       setSuccessMessage(`${item.nombre} agregado al carrito`)
@@ -573,10 +588,37 @@ export function PuntoVenta() {
     }
   }
 
+  // Activar escáner para capturar números de serie de un equipo en el carrito
+  const activarEscanerSerial = async (index: number, campo: 'numeroEvaporador' | 'numeroCondensador') => {
+    console.log("🔄 Activando escáner para", campo, "de la línea", index)
+    setScanTarget({ index, campo })
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: esMobile ? 'environment' : 'user',
+            width: esMobile ? { ideal: 1280, max: 1920 } : { ideal: 1280 },
+            height: esMobile ? { ideal: 720, max: 1080 } : { ideal: 720 }
+          }
+        })
+        stream.getTracks().forEach(track => track.stop())
+        setMostrarEscaner(true)
+        setEscanerActivo(true)
+        setErrorMessage("")
+      } else {
+        throw new Error("getUserMedia no está disponible")
+      }
+    } catch (error) {
+      console.error("❌ Error al acceder a la cámara:", error)
+      setErrorMessage("Error al acceder a la cámara.")
+    }
+  }
+
   const desactivarEscaner = () => {
     console.log("Desactivando escáner...")
     setMostrarEscaner(false)
     setEscanerActivo(false)
+    setScanTarget(null)
   }
 
   const manejarEscaneo = async (detectedCodes: any[]) => {
@@ -592,30 +634,25 @@ export function PuntoVenta() {
       console.log("🏷️ Formato del código:", firstCode?.format)
       
       if (firstCode && firstCode.rawValue) {
-        // Mostrar confirmación con el código escaneado
-        const confirmar = window.confirm(`Código escaneado: ${firstCode.rawValue}\n\n¿Deseas agregar este código al campo SKU?`)
-        
-        if (confirmar) {
-          console.log("✅ Usuario confirmó, agregando al campo SKU...")
-          console.log("🔍 Estado actual de skuInput antes:", skuInput)
-          
-          // Agregar el código escaneado al campo SKU
-          setSkuInput(firstCode.rawValue)
-          console.log("🔄 Ejecutando setSkuInput con:", firstCode.rawValue)
-          
-          // Verificar después de un pequeño delay
-          setTimeout(() => {
-            console.log("🔍 Estado de skuInput después del setSkuInput:", skuInput)
-          }, 100)
-          
-          // Desactivar el escáner
-          desactivarEscaner()
-          
-          // Mostrar mensaje de éxito
-          setSuccessMessage(`Código ${firstCode.rawValue} agregado al campo SKU`)
-          setTimeout(() => setSuccessMessage(""), 3000)
-          
-          console.log("📝 Código agregado al campo SKU:", firstCode.rawValue)
+        const valor = firstCode.rawValue
+        if (scanTarget) {
+          const etiqueta = scanTarget.campo === 'numeroEvaporador' ? 'Número evaporador' : 'Número condensador'
+          const confirmar = window.confirm(`Código escaneado: ${valor}\n\n¿Asignarlo a ${etiqueta}?`)
+          if (confirmar) {
+            actualizarSerial(scanTarget.index, scanTarget.campo, valor)
+            desactivarEscaner()
+            setSuccessMessage(`Código ${valor} asignado a ${etiqueta}`)
+            setTimeout(() => setSuccessMessage(""), 3000)
+          }
+        } else {
+          // Escaneo de SKU
+          const confirmar = window.confirm(`Código escaneado: ${valor}\n\n¿Deseas agregar este código al campo SKU?`)
+          if (confirmar) {
+            setSkuInput(valor)
+            desactivarEscaner()
+            setSuccessMessage(`Código ${valor} agregado al campo SKU`)
+            setTimeout(() => setSuccessMessage(""), 3000)
+          }
         }
         // Si no confirma, el escáner sigue activo para continuar escaneando
       } else {
@@ -679,8 +716,17 @@ export function PuntoVenta() {
     setErrorMessage(errorMsg)
   }
 
-  const eliminarDelCarrito = (sku: string) => {
-    setCarrito(carrito.filter((item) => item.sku !== sku))
+  const eliminarDelCarrito = (index: number) => {
+    setCarrito(carrito.filter((_, i) => i !== index))
+  }
+
+  // Actualiza números de serie por equipo en el carrito
+  const actualizarSerial = (
+    index: number,
+    campo: 'numeroEvaporador' | 'numeroCondensador',
+    valor: string
+  ) => {
+    setCarrito(carrito.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)))
   }
 
   const calcularTotales = () => {
@@ -750,7 +796,9 @@ export function PuntoVenta() {
         cantidad: item.cantidad,
         costo: item.costo,
         precio: item.precio,
-        utilidad: item.utilidad
+        utilidad: item.utilidad,
+        numero_evaporador: item.numeroEvaporador ?? null,
+        numero_condensador: item.numeroCondensador ?? null
       }))
 
       const { error } = await supabase
@@ -1085,7 +1133,7 @@ export function PuntoVenta() {
           {/* Modal del escáner de códigos de barras */}
           {mostrarEscaner && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg mx-auto max-h-[90vh] overflow-y-auto">
+              <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg md:max-w-2xl lg:max-w-3xl mx-auto max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg sm:text-xl font-semibold text-black">Escáner de Códigos</h3>
                   <Button
@@ -1134,13 +1182,13 @@ export function PuntoVenta() {
                         styles={{
                           container: {
                             width: '100%',
-                            height: esMobile ? '300px' : '400px',
+                            height: esMobile ? '300px' : '500px',
                             borderRadius: '8px',
                             overflow: 'hidden',
                             backgroundColor: '#000'
                           },
                           video: {
-                            objectFit: 'cover',
+                            objectFit: esMobile ? 'cover' : 'contain',
                             width: '100%',
                             height: '100%'
                           }
@@ -1183,8 +1231,8 @@ export function PuntoVenta() {
               {/* Vista móvil */}
               <div className="block sm:hidden">
                 <div className="space-y-3 p-4">
-                  {carrito.map((item) => (
-                    <div key={item.sku} className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  {carrito.map((item, index) => (
+                    <div key={`${item.sku}-${index}`} className="bg-gray-50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="font-medium text-black text-base">{item.nombre}</div>
@@ -1194,7 +1242,7 @@ export function PuntoVenta() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => eliminarDelCarrito(item.sku)}
+                          onClick={() => eliminarDelCarrito(index)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1218,6 +1266,42 @@ export function PuntoVenta() {
                           <span className="text-black font-semibold">{formatCurrency(item.precio * item.cantidad)}</span>
                         </div>
                       </div>
+                      {item.tipo === 'equipo' && (
+                        <div className="grid grid-cols-1 gap-2 mt-2">
+                          <div className="flex gap-2">
+                            <Input
+                              value={item.numeroEvaporador ?? ''}
+                              onChange={(e) => actualizarSerial(index, 'numeroEvaporador', e.target.value)}
+                              placeholder="Número evaporador"
+                              className="bg-white border-gray-300 text-black placeholder:text-gray-400 flex-1"
+                            />
+                            <Button
+                              onClick={() => activarEscanerSerial(index, 'numeroEvaporador')}
+                              variant="outline"
+                              className="bg-white border-gray-300 text-black hover:bg-gray-50 h-10 w-10 p-0"
+                              title="Escanear número evaporador"
+                            >
+                              <Camera className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              value={item.numeroCondensador ?? ''}
+                              onChange={(e) => actualizarSerial(index, 'numeroCondensador', e.target.value)}
+                              placeholder="Número condensador"
+                              className="bg-white border-gray-300 text-black placeholder:text-gray-400 flex-1"
+                            />
+                            <Button
+                              onClick={() => activarEscanerSerial(index, 'numeroCondensador')}
+                              variant="outline"
+                              className="bg-white border-gray-300 text-black hover:bg-gray-50 h-10 w-10 p-0"
+                              title="Escanear número condensador"
+                            >
+                              <Camera className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   
@@ -1241,25 +1325,27 @@ export function PuntoVenta() {
 
               {/* Vista desktop */}
               <div className="hidden sm:block overflow-x-auto">
-                <Table>
+                <Table className="min-w-[1200px]">
                   <TableHeader>
                     <TableRow className="border-gray-200 hover:bg-gray-50">
                       <TableHead className="text-gray-700">SKU</TableHead>
                       <TableHead className="text-gray-700">Producto</TableHead>
                       <TableHead className="text-gray-700">Tipo</TableHead>
-                      <TableHead className="text-gray-700 text-right">Cantidad</TableHead>
-                      <TableHead className="text-gray-700 text-right">Costo Unit.</TableHead>
-                      <TableHead className="text-gray-700 text-right">Precio Unit.</TableHead>
-                      <TableHead className="text-gray-700 text-right">Utilidad Unit.</TableHead>
-                      <TableHead className="text-gray-700 text-right">Total</TableHead>
+                      <TableHead className="text-gray-700 text-right whitespace-nowrap">Cantidad</TableHead>
+                      <TableHead className="text-gray-700 text-right whitespace-nowrap">Costo Unit.</TableHead>
+                      <TableHead className="text-gray-700 text-right whitespace-nowrap">Precio Unit.</TableHead>
+                      <TableHead className="text-gray-700 text-right whitespace-nowrap">Utilidad Unit.</TableHead>
+                      <TableHead className="text-gray-700 text-right whitespace-nowrap">Total</TableHead>
+                      <TableHead className="text-gray-700">Evaporador</TableHead>
+                      <TableHead className="text-gray-700">Condensador</TableHead>
                       <TableHead className="text-gray-700 text-center">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {carrito.map((item) => (
-                      <TableRow key={item.sku} className="border-gray-200 hover:bg-gray-50">
-                        <TableCell className="font-mono text-blue-600">{item.sku}</TableCell>
-                        <TableCell className="text-black font-medium">{item.nombre}</TableCell>
+                    {carrito.map((item, index) => (
+                      <TableRow key={`${item.sku}-${index}`} className="border-gray-200 hover:bg-gray-50">
+                        <TableCell className="font-mono text-blue-600 whitespace-nowrap">{item.sku}</TableCell>
+                        <TableCell className="text-black font-medium max-w-[280px] truncate">{item.nombre}</TableCell>
                         <TableCell className="text-gray-600 capitalize">{item.tipo}</TableCell>
                         <TableCell className="text-right text-black">{item.cantidad}</TableCell>
                         <TableCell className="text-right text-gray-600">{formatCurrency(item.costo)}</TableCell>
@@ -1268,12 +1354,56 @@ export function PuntoVenta() {
                         <TableCell className="text-right text-black font-semibold">
                           {formatCurrency(item.precio * item.cantidad)}
                         </TableCell>
+                        <TableCell className="min-w-[200px]">
+                          {item.tipo === 'equipo' ? (
+                            <div className="flex gap-2">
+                              <Input
+                                value={item.numeroEvaporador ?? ''}
+                                onChange={(e) => actualizarSerial(index, 'numeroEvaporador', e.target.value)}
+                                placeholder="Num. evaporador"
+                                className="bg-white border-gray-300 text-black placeholder:text-gray-400 h-9 flex-1"
+                              />
+                              <Button
+                                onClick={() => activarEscanerSerial(index, 'numeroEvaporador')}
+                                variant="outline"
+                                className="bg-white border-gray-300 text-black hover:bg-gray-50 h-9 w-9 p-0"
+                                title="Escanear número evaporador"
+                              >
+                                <Camera className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="min-w-[200px]">
+                          {item.tipo === 'equipo' ? (
+                            <div className="flex gap-2">
+                              <Input
+                                value={item.numeroCondensador ?? ''}
+                                onChange={(e) => actualizarSerial(index, 'numeroCondensador', e.target.value)}
+                                placeholder="Num. condensador"
+                                className="bg-white border-gray-300 text-black placeholder:text-gray-400 h-9 flex-1"
+                              />
+                              <Button
+                                onClick={() => activarEscanerSerial(index, 'numeroCondensador')}
+                                variant="outline"
+                                className="bg-white border-gray-300 text-black hover:bg-gray-50 h-9 w-9 p-0"
+                                title="Escanear número condensador"
+                              >
+                                <Camera className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <div className="flex justify-center">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => eliminarDelCarrito(item.sku)}
+                              onClick={() => eliminarDelCarrito(index)}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1288,12 +1418,16 @@ export function PuntoVenta() {
                       </TableCell>
                       <TableCell className="text-right font-bold text-black">{formatCurrency(totales.ventaTotal)}</TableCell>
                       <TableCell />
+                      <TableCell />
+                      <TableCell />
                     </TableRow>
                     <TableRow className="border-gray-200 bg-gray-50">
                       <TableCell colSpan={7} className="text-right text-gray-600">
                         Costo Total:
                       </TableCell>
                       <TableCell className="text-right text-gray-600">{formatCurrency(totales.costoTotal)}</TableCell>
+                      <TableCell />
+                      <TableCell />
                       <TableCell />
                     </TableRow>
                     <TableRow className="border-gray-200 bg-gray-50">
@@ -1303,6 +1437,8 @@ export function PuntoVenta() {
                       <TableCell className="text-right text-green-600 font-semibold">
                         {formatCurrency(totales.utilidadTotal)}
                       </TableCell>
+                      <TableCell />
+                      <TableCell />
                       <TableCell />
                     </TableRow>
                   </TableBody>
@@ -1468,7 +1604,7 @@ export function PuntoVenta() {
                 </Button>
 
                 {/* Lista de clientes existentes */}
-                <div className="max-h-60 overflow-y-auto">
+                <div className="max-h-[50vh] md:max-h-[60vh] overflow-y-auto">
                   <h4 className="font-medium text-black mb-2">Clientes Existentes ({clientesList.length})</h4>
                   <div className="space-y-2">
                     {clientesList.map((cliente) => (
@@ -1580,26 +1716,26 @@ export function PuntoVenta() {
             )}
           </div>
 
-          <div className="pt-4 space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button 
-                onClick={() => setCarrito([])}
-                disabled={carrito.length === 0 || procesandoVenta}
-                variant="outline"
-                className="w-full sm:w-auto bg-white border-gray-300 text-gray-700 hover:bg-gray-50 h-12 text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Limpiar Carrito
-              </Button>
-              <Button 
-                onClick={registrarVenta} 
-                disabled={procesandoVenta || carrito.length === 0}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-lg h-12 sm:py-6 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {procesandoVenta ? "Procesando..." : "Registrar Venta"}
-              </Button>
+            <div className="pt-4 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={() => setCarrito([])}
+                  disabled={carrito.length === 0 || procesandoVenta}
+                  variant="outline"
+                  className="w-full sm:w-auto bg-white border-gray-300 text-gray-700 hover:bg-gray-50 h-12 px-8 text-base whitespace-nowrap disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Limpiar Carrito
+                </Button>
+                <Button 
+                  onClick={registrarVenta} 
+                  disabled={procesandoVenta || carrito.length === 0}
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white h-12 px-8 text-base whitespace-nowrap disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {procesandoVenta ? "Procesando..." : "Registrar Venta"}
+                </Button>
+              </div>
             </div>
-          </div>
         </CardContent>
       </Card>
     </div>

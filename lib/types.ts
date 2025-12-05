@@ -64,6 +64,9 @@ export interface ItemCarrito {
   costo: number
   precio: number
   utilidad: number
+  // Seriales por equipo (opcional, solo aplica para equipos)
+  numeroEvaporador?: string
+  numeroCondensador?: string
 }
 
 export interface Venta {

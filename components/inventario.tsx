@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Fragment } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -55,7 +55,13 @@ export function Inventario() {
     loadRefacciones()
   }, [])
 
-  const productosFiltrados = productosState.filter((p) => categoriaFiltro === "Todas" || p.categoria === categoriaFiltro)
+  const productosFiltrados = productosState
+    .filter((p) => categoriaFiltro === "Todas" || p.categoria === categoriaFiltro)
+
+  // Categorías ordenadas presentes en el resultado filtrado
+  const categoriasOrdenadas = Array.from(new Set(productosFiltrados.map((p) => p.categoria))).sort((a, b) => {
+    return a.localeCompare(b)
+  })
 
   const getInventario = (productoId: string) => {
     return inventarioState.find((inv) => inv.productoId === productoId)
@@ -203,123 +209,139 @@ export function Inventario() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {productosFiltrados.map((producto) => {
-                  const inventario = getInventario(producto.id)
-                  const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
-                  const utilidadCalc = producto.precio - producto.costo
-
-                  return (
-                    <TableRow key={producto.id} className="border-gray-200 hover:bg-gray-50">
-                      <TableCell className="font-mono text-blue-600">{producto.sku}</TableCell>
-                      <TableCell className="text-black font-medium">{producto.nombre}</TableCell>
-                      <TableCell className="text-gray-600">{producto.categoria}</TableCell>
-                      <TableCell className="text-right text-black">
-                        {editingId === producto.id ? (
-                          <Input
-                            type="number"
-                            value={editValues.cantidadCancun}
-                            onChange={(e) =>
-                              setEditValues((v) => ({ ...v, cantidadCancun: Number.parseInt(e.target.value || "0") }))
-                            }
-                            className="w-24 bg-white border-gray-300 text-black"
-                          />
-                        ) : (
-                          inventario?.cantidadCancun || 0
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-black">
-                        {editingId === producto.id ? (
-                          <Input
-                            type="number"
-                            value={editValues.cantidadPlaya}
-                            onChange={(e) =>
-                              setEditValues((v) => ({ ...v, cantidadPlaya: Number.parseInt(e.target.value || "0") }))
-                            }
-                            className="w-24 bg-white border-gray-300 text-black"
-                          />
-                        ) : (
-                          inventario?.cantidadPlaya || 0
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-black font-semibold">{total}</TableCell>
-                      <TableCell className="text-right text-gray-600">
-                        {editingId === producto.id ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValues.costo}
-                            onChange={(e) =>
-                              setEditValues((v) => ({ ...v, costo: Number.parseFloat(e.target.value || "0") }))
-                            }
-                            className="w-28 bg-white border-gray-300 text-black"
-                          />
-                        ) : (
-                          <>{formatCurrency(producto.costo)}</>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-black font-medium">
-                        {editingId === producto.id ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValues.precio}
-                            onChange={(e) =>
-                              setEditValues((v) => ({ ...v, precio: Number.parseFloat(e.target.value || "0") }))
-                            }
-                            className="w-28 bg-white border-gray-300 text-black"
-                          />
-                        ) : (
-                          <>{formatCurrency(producto.precio)}</>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-green-600 font-semibold">
-                        {formatCurrency(utilidadCalc)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2 justify-center">
-                          {editingId === producto.id ? (
-                            <>
-                              <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                onClick={() => saveEdit(producto.id)}
-                              >
-                                Guardar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-gray-700 border-gray-300 hover:bg-gray-50"
-                                onClick={cancelEdit}
-                              >
-                                Cancelar
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                onClick={() => startEdit(producto)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => deleteProducto(producto.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                {categoriasOrdenadas.map((cat) => (
+                  <Fragment key={cat}>
+                    {/* Cabecera de categoría con ligera separación */}
+                    <TableRow>
+                      <TableCell colSpan={10} className="bg-gray-50 text-gray-700 font-semibold border-t border-gray-300">
+                        {cat}
                       </TableCell>
                     </TableRow>
-                  )
-                })}
+                    {productosFiltrados
+                      .filter((p) => p.categoria === cat)
+                      .map((producto) => {
+                        const inventario = getInventario(producto.id)
+                        const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
+                        const utilidadCalc = producto.precio - producto.costo
+
+                        return (
+                          <TableRow key={producto.id} className="border-gray-200 hover:bg-gray-50">
+                            <TableCell className="font-mono text-blue-600">{producto.sku}</TableCell>
+                            <TableCell className="text-black font-medium">
+                              <div className="whitespace-normal break-words max-w-[320px] lg:max-w-[420px]">
+                                {producto.nombre}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-gray-600">{producto.categoria}</TableCell>
+                            <TableCell className="text-right text-black">
+                              {editingId === producto.id ? (
+                                <Input
+                                  type="number"
+                                  value={editValues.cantidadCancun}
+                                  onChange={(e) =>
+                                    setEditValues((v) => ({ ...v, cantidadCancun: Number.parseInt(e.target.value || "0") }))
+                                  }
+                                  className="w-24 bg-white border-gray-300 text-black"
+                                />
+                              ) : (
+                                inventario?.cantidadCancun || 0
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-black">
+                              {editingId === producto.id ? (
+                                <Input
+                                  type="number"
+                                  value={editValues.cantidadPlaya}
+                                  onChange={(e) =>
+                                    setEditValues((v) => ({ ...v, cantidadPlaya: Number.parseInt(e.target.value || "0") }))
+                                  }
+                                  className="w-24 bg-white border-gray-300 text-black"
+                                />
+                              ) : (
+                                inventario?.cantidadPlaya || 0
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-black font-semibold">{total}</TableCell>
+                            <TableCell className="text-right text-gray-600">
+                              {editingId === producto.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={editValues.costo}
+                                  onChange={(e) =>
+                                    setEditValues((v) => ({ ...v, costo: Number.parseFloat(e.target.value || "0") }))
+                                  }
+                                  className="w-28 bg-white border-gray-300 text-black"
+                                />
+                              ) : (
+                                <>{formatCurrency(producto.costo)}</>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-black font-medium">
+                              {editingId === producto.id ? (
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={editValues.precio}
+                                  onChange={(e) =>
+                                    setEditValues((v) => ({ ...v, precio: Number.parseFloat(e.target.value || "0") }))
+                                  }
+                                  className="w-28 bg-white border-gray-300 text-black"
+                                />
+                              ) : (
+                                <>{formatCurrency(producto.precio)}</>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600 font-semibold">
+                              {formatCurrency(utilidadCalc)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2 justify-center">
+                                {editingId === producto.id ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                      onClick={() => saveEdit(producto.id)}
+                                    >
+                                      Guardar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-gray-700 border-gray-300 hover:bg-gray-50"
+                                      onClick={cancelEdit}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={() => startEdit(producto)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => deleteProducto(producto.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                  </Fragment>
+                ))}
               </TableBody>
             </Table>
           </div>
@@ -327,120 +349,130 @@ export function Inventario() {
       </Card>
 
       {/* Vista móvil: tarjetas compactas con edición inline */}
-      <div className="block md:hidden space-y-3">
-        {productosFiltrados.map((producto) => {
-          const inventario = getInventario(producto.id)
-          const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
-          const utilidadCalc = producto.precio - producto.costo
+      <div className="block md:hidden space-y-4">
+        {categoriasOrdenadas.map((cat) => (
+          <Fragment key={cat}>
+            {/* Cabecera de categoría para móvil */}
+            <div className="text-sm font-semibold text-gray-700 px-1">{cat}</div>
+            {productosFiltrados
+              .filter((p) => p.categoria === cat)
+              .map((producto) => {
+                const inventario = getInventario(producto.id)
+                const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
+                const utilidadCalc = producto.precio - producto.costo
 
-          return (
-            <Card key={producto.id} className="bg-white border-gray-200">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-mono text-blue-600">{producto.sku}</div>
-                    <div className="text-base font-semibold text-black">{producto.nombre}</div>
-                    <div className="text-xs text-gray-600">{producto.categoria}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    {editingId === producto.id ? (
-                      <>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => saveEdit(producto.id)}>
-                          Guardar
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-gray-700 border-gray-300 hover:bg-gray-50" onClick={cancelEdit}>
-                          Cancelar
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => startEdit(producto)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deleteProducto(producto.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                return (
+                  <Card key={producto.id} className="bg-white border-gray-200">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-mono text-blue-600">{producto.sku}</div>
+                          <div className="text-base font-semibold text-black whitespace-normal break-words">
+                            {producto.nombre}
+                          </div>
+                          <div className="text-xs text-gray-600">{producto.categoria}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          {editingId === producto.id ? (
+                            <>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => saveEdit(producto.id)}>
+                                Guardar
+                              </Button>
+                              <Button size="sm" variant="outline" className="text-gray-700 border-gray-300 hover:bg-gray-50" onClick={cancelEdit}>
+                                Cancelar
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => startEdit(producto)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deleteProducto(producto.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
 
-                {/* Cantidades */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-gray-600">Cancún</div>
-                    {editingId === producto.id ? (
-                      <Input
-                        type="number"
-                        value={editValues.cantidadCancun}
-                        onChange={(e) => setEditValues((v) => ({ ...v, cantidadCancun: Number.parseInt(e.target.value || "0") }))}
-                        className="bg-white border-gray-300 text-black"
-                      />
-                    ) : (
-                      <div className="text-sm text-black font-medium">{inventario?.cantidadCancun || 0}</div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-600">Playa</div>
-                    {editingId === producto.id ? (
-                      <Input
-                        type="number"
-                        value={editValues.cantidadPlaya}
-                        onChange={(e) => setEditValues((v) => ({ ...v, cantidadPlaya: Number.parseInt(e.target.value || "0") }))}
-                        className="bg-white border-gray-300 text-black"
-                      />
-                    ) : (
-                      <div className="text-sm text-black font-medium">{inventario?.cantidadPlaya || 0}</div>
-                    )}
-                  </div>
-                </div>
+                      {/* Cantidades */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-600">Cancún</div>
+                          {editingId === producto.id ? (
+                            <Input
+                              type="number"
+                              value={editValues.cantidadCancun}
+                              onChange={(e) => setEditValues((v) => ({ ...v, cantidadCancun: Number.parseInt(e.target.value || "0") }))}
+                              className="bg-white border-gray-300 text-black"
+                            />
+                          ) : (
+                            <div className="text-sm text-black font-medium">{inventario?.cantidadCancun || 0}</div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">Playa</div>
+                          {editingId === producto.id ? (
+                            <Input
+                              type="number"
+                              value={editValues.cantidadPlaya}
+                              onChange={(e) => setEditValues((v) => ({ ...v, cantidadPlaya: Number.parseInt(e.target.value || "0") }))}
+                              className="bg-white border-gray-300 text-black"
+                            />
+                          ) : (
+                            <div className="text-sm text-black font-medium">{inventario?.cantidadPlaya || 0}</div>
+                          )}
+                        </div>
+                      </div>
 
-                {/* Totales y precios */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-gray-600">Total</div>
-                    <div className="text-sm text-black font-semibold">{total}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-600">Utilidad</div>
-                    <div className="text-sm text-green-600 font-semibold">{formatCurrency(utilidadCalc)}</div>
-                  </div>
-                </div>
+                      {/* Totales y precios */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-600">Total</div>
+                          <div className="text-sm text-black font-semibold">{total}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">Utilidad</div>
+                          <div className="text-sm text-green-600 font-semibold">{formatCurrency(utilidadCalc)}</div>
+                        </div>
+                      </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs text-gray-600">Costo</div>
-                    {editingId === producto.id ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={editValues.costo}
-                        onChange={(e) => setEditValues((v) => ({ ...v, costo: Number.parseFloat(e.target.value || "0") }))}
-                        className="bg-white border-gray-300 text-black"
-                      />
-                    ) : (
-                      <div className="text-sm text-gray-700">{formatCurrency(producto.costo)}</div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-600">Precio</div>
-                    {editingId === producto.id ? (
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={editValues.precio}
-                        onChange={(e) => setEditValues((v) => ({ ...v, precio: Number.parseFloat(e.target.value || "0") }))}
-                        className="bg-white border-gray-300 text-black"
-                      />
-                    ) : (
-                      <div className="text-sm text-black font-medium">{formatCurrency(producto.precio)}</div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-600">Costo</div>
+                          {editingId === producto.id ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editValues.costo}
+                              onChange={(e) => setEditValues((v) => ({ ...v, costo: Number.parseFloat(e.target.value || "0") }))}
+                              className="bg-white border-gray-300 text-black"
+                            />
+                          ) : (
+                            <div className="text-sm text-gray-700">{formatCurrency(producto.costo)}</div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">Precio</div>
+                          {editingId === producto.id ? (
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editValues.precio}
+                              onChange={(e) => setEditValues((v) => ({ ...v, precio: Number.parseFloat(e.target.value || "0") }))}
+                              className="bg-white border-gray-300 text-black"
+                            />
+                          ) : (
+                            <div className="text-sm text-black font-medium">{formatCurrency(producto.precio)}</div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+          </Fragment>
+        ))}
       </div>
     </div>
   )

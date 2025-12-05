@@ -86,6 +86,12 @@ export function InventarioEquipos() {
     const matchModelo = modeloFiltro === "Todos" || e.modelo === modeloFiltro
     return matchTecnologia && matchModelo
   })
+  // Ordenar por modelo y nombre para agrupar visualmente por modelo
+  const equiposOrdenados = [...equiposFiltrados].sort((a, b) => {
+    const cmpModelo = String(a.modelo).localeCompare(String(b.modelo))
+    if (cmpModelo !== 0) return cmpModelo
+    return a.nombre.localeCompare(b.nombre)
+  })
 
   const getInventario = (equipoId: string) => {
     return inventarioState.find((inv) => inv.productoId === equipoId)
@@ -308,13 +314,22 @@ export function InventarioEquipos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {equiposFiltrados.map((equipo) => {
+                {equiposOrdenados.map((equipo, idx) => {
                   const inventario = getInventario(equipo.id)
                   const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
                   const utilidadCalc = equipo.precio - equipo.costo
+                  const isNewModelGroup = idx === 0 || equiposOrdenados[idx - 1].modelo !== equipo.modelo
 
                   return (
-                    <TableRow key={equipo.id} className="border-gray-200 hover:bg-gray-50">
+                    <>
+                      {isNewModelGroup && (
+                        <TableRow className="bg-gray-100 border-t-4 border-gray-300">
+                          <TableCell colSpan={13} className="text-gray-800 font-semibold">
+                            Modelo: {String(equipo.modelo)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow key={equipo.id} className="border-gray-200 hover:bg-gray-50">
                       <TableCell className="font-mono text-blue-600">{equipo.sku}</TableCell>
                       <TableCell className="text-black font-medium">{equipo.nombre}</TableCell>
                       <TableCell className="text-gray-600">{equipo.modelo}</TableCell>
@@ -425,7 +440,8 @@ export function InventarioEquipos() {
                           )}
                         </div>
                       </TableCell>
-                    </TableRow>
+                      </TableRow>
+                    </>
                   )
                 })}
               </TableBody>
@@ -435,14 +451,21 @@ export function InventarioEquipos() {
       </Card>
 
       <div className="block md:hidden space-y-3">
-        {equiposFiltrados.map((equipo) => {
+        {equiposOrdenados.map((equipo, idx) => {
           const inventario = getInventario(equipo.id)
           const total = (inventario?.cantidadCancun || 0) + (inventario?.cantidadPlaya || 0)
           const utilidadCalc = equipo.precio - equipo.costo
+          const isNewModelGroup = idx === 0 || equiposOrdenados[idx - 1].modelo !== equipo.modelo
 
           return (
-            <Card key={equipo.id} className="bg-white border-gray-200">
-              <CardContent className="p-4 space-y-3">
+            <div key={equipo.id}>
+              {isNewModelGroup && (
+                <div className="mt-4 -mx-4 px-4 py-2 bg-gray-100 text-gray-800 font-semibold border-t-4 border-gray-300">
+                  Modelo: {String(equipo.modelo)}
+                </div>
+              )}
+              <Card className="bg-white border-gray-200">
+                <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-mono text-blue-600">{equipo.sku}</div>
@@ -542,8 +565,9 @@ export function InventarioEquipos() {
                     )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           )
         })}
       </div>

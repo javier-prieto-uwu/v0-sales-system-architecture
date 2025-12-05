@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Tecnologia } from "@/lib/types"
 import { supabase } from "@/lib/supabaseClient"
+import { Trash2 } from "lucide-react"
 
 export function AgregarProducto() {
   const [tipoInventario, setTipoInventario] = useState<"normal" | "equipo">("normal")
@@ -49,6 +50,29 @@ export function AgregarProducto() {
     loadCategorias()
   }, [])
 
+  // Eliminar categoría desde catálogo y estado local
+  const deleteCategoria = async (nombre: string) => {
+    const ok = typeof window !== "undefined" ? window.confirm(`¿Eliminar la categoría "${nombre}"?`) : true
+    if (!ok) return
+    try {
+      const { error } = await supabase.from("catalogo_categorias").delete().eq("nombre", nombre)
+      if (error) {
+        console.error("Error eliminando categoría:", error.message)
+        alert(`Error eliminando categoría: ${error.message}`)
+        return
+      }
+      const updated = categoriasList.filter((c) => c !== nombre)
+      setCategoriasList(updated)
+      if (categoria === nombre) {
+        setCategoria(updated[0] || "")
+      }
+      alert("Categoría eliminada")
+    } catch (err: any) {
+      console.error("Error eliminando categoría:", err?.message || String(err))
+      alert(`Error eliminando categoría: ${err?.message || String(err)}`)
+    }
+  }
+
   // Cargar modelos desde catálogo (public.catalogo_modelos)
   useEffect(() => {
     const loadModelos = async () => {
@@ -62,6 +86,29 @@ export function AgregarProducto() {
     }
     loadModelos()
   }, [])
+
+  // Eliminar modelo desde catálogo y estado local (equipos)
+  const deleteModelo = async (nombre: string) => {
+    const ok = typeof window !== "undefined" ? window.confirm(`¿Eliminar el modelo "${nombre}"?`) : true
+    if (!ok) return
+    try {
+      const { error } = await supabase.from("catalogo_modelos").delete().eq("nombre", nombre)
+      if (error) {
+        console.error("Error eliminando modelo:", error.message)
+        alert(`Error eliminando modelo: ${error.message}`)
+        return
+      }
+      const updated = modelosList.filter((m) => m !== nombre)
+      setModelosList(updated)
+      if (modelo === nombre) {
+        setModelo(updated[0] || "")
+      }
+      alert("Modelo eliminado")
+    } catch (err: any) {
+      console.error("Error eliminando modelo:", err?.message || String(err))
+      alert(`Error eliminando modelo: ${err?.message || String(err)}`)
+    }
+  }
 
   const calcularUtilidad = () => {
     const costoNum = Number.parseFloat(costo) || 0
@@ -260,6 +307,28 @@ export function AgregarProducto() {
                     Agregar
                   </Button>
                 </div>
+
+                {/* Administrar categorías: listado con opción de eliminar */}
+                <div className="mt-4">
+                  <div className="text-sm text-gray-700">Administrar categorías</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {categoriasList.map((cat) => (
+                      <div key={cat} className="flex items-center gap-2 px-3 py-1 rounded-full border border-gray-300 bg-white text-black">
+                        <span className="text-sm">{cat}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-0 h-6"
+                          onClick={() => deleteCategoria(cat)}
+                          title="Eliminar categoría"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -319,6 +388,27 @@ export function AgregarProducto() {
                       >
                         Agregar
                       </Button>
+                    </div>
+                    {/* Administrar modelos: listado con opción de eliminar */}
+                    <div className="mt-4">
+                      <div className="text-sm text-gray-700">Administrar modelos</div>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {modelosList.map((mod) => (
+                          <div key={mod} className="flex items-center gap-2 px-3 py-1 rounded-full border border-gray-300 bg-white text-black">
+                            <span className="text-sm">{mod}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 p-0 h-6"
+                              onClick={() => deleteModelo(mod)}
+                              title="Eliminar modelo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
